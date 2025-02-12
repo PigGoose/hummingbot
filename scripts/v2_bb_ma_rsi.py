@@ -57,9 +57,8 @@ class BbMaConfig(StrategyV2ConfigBase):
     
     # 布林带标准差倍数，默认2.0，必须大于0
     # 用于计算上下轨：中轨 ± (bb_std * 标准差)
-    bb_std: float = Field(default=2.0, gt=0, client_data=ClientFieldData(
+    bb_k: float = Field(default=2.0, gt=0, client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "Bollinger Bands standard deviation multiplier"))
-    
     # 快速移动平均线周期长度，默认5周期，必须大于0
     # 用于判断短期趋势
     fast_ma_length: int = Field(default=5, gt=0, client_data=ClientFieldData(
@@ -417,31 +416,31 @@ class BbMa(StrategyV2Base):
             
             if len(candles_df) < self.config.min_data_points:
                 self.logger().warning(f"数据点数不足: {len(candles_df)} < {self.config.min_data_points}")
-                self.ready = False
+                self.ready = False      ##若数据点数不足，策略设置为未就绪
                 return
             
             # 2. 计算布林带指标
             # 计算移动平均和标准差
             ma = candles_df['close'].rolling(window=self.config.bb_length).mean()
-            std = candles_df['close'].rolling(window=self.config.bb_length).std()
+            std_dev = candles_df['close'].rolling(window=self.config.bb_length).std()
             
             # 计算布林带三条线
-            self.bb_middle = ma.iloc[-1]  # 中轨 = MA
-            self.bb_upper = ma.iloc[-1] + self.config.bb_std * std.iloc[-1]  # 上轨 = MA + n倍标准差
-            self.bb_lower = ma.iloc[-1] - self.config.bb_std * std.iloc[-1]  # 下轨 = MA - n倍标准差
+            self.bb_middle = ma.iloc[-1]  # 中轨 = MA20
+            self.bb_upper = ma.iloc[-1] + self.config.bb_k * std_dev.iloc[-1]  # 上轨 = MA + n倍标准差
+            self.bb_lower = ma.iloc[-1] - self.config.bb_k * std_dev.iloc[-1]  # 下轨 = MA - n倍标准差
             
             # 3. 计算双MA
             # 计算快线和慢线
-            fast_ma_series = candles_df['close'].rolling(window=self.config.fast_ma_length).mean()
-            slow_ma_series = candles_df['close'].rolling(window=self.config.slow_ma_length).mean()
+            ma5_series = candles_df['close'].rolling(window=self.config.fast_ma_length).mean()
+            ma10_series = candles_df['close'].rolling(window=self.config.slow_ma_length).mean()
             
             # 保存上一周期的值
-            self.prev_fast_ma = fast_ma_series.iloc[-2]
-            self.prev_slow_ma = slow_ma_series.iloc[-2]
+            self.prev_ma5 = ma5_series.iloc[-2]
+            self.prev_ma10 = ma10_series.iloc[-2]
             
             # 保存当前周期的值
-            self.fast_ma = fast_ma_series.iloc[-1]
-            self.slow_ma = slow_ma_series.iloc[-1]
+            self.ma5 = ma5_series.iloc[-1]
+            self.ma10 = ma10_series.iloc[-1]
             
             # 4. 计算市场数据
             # 计算RSI (使用pandas_ta)
@@ -449,16 +448,17 @@ class BbMa(StrategyV2Base):
             
             # 成交量
             self.current_volume = candles_df['volume'].iloc[-1]
+            
             # 波动率（价格变化率的标准差）
             # 计算波动率，使用与布林带相同的周期
-            price_changes = candles_df['close'].pct_change()
-            self.current_volatility = price_changes.rolling(window=self.config.bb_length).std().iloc[-1]
+          #!  price_changes = candles_df['close'].pct_change()
+          #!  self.current_volatility = price_changes.rolling(window=self.config.bb_length).std().iloc[-1]
             
             # 获取当前价格（根据配置的价格类型）
             self.current_price = float(self.market_data_provider.get_price_by_type(
                 self.config.exchange,
                 self.config.trading_pair,
-                self.get_price_type()))
+                self.get_price_type()))          #mid_price 标记价格
             
             # 5. 更新性能指标
             self.update_performance_metrics()
