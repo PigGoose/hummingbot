@@ -83,15 +83,15 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
         prompt_on_new=True, prompt=lambda mi: "EMA10周期长度（默认：10）"))
         
     # RSI指标周期，默认15
-    rsi_length: Decimal = Field(default=15, gt=0, client_data=ClientFieldData(
+    rsi_length: Decimal = Field(default=15, gt=0, client_data=ClientFieldData(  
         prompt_on_new=True, prompt=lambda mi: "RSI 周期（默认：15）"))
         
     # RSI超买阈值，默认70，必须在0-100之间
-    rsi_upper: Decimal = Field(default=70.0, gt=0, lt=100, client_data=ClientFieldData(
+    rsi_upper: Decimal = Field(default=70.0, gt=0, lt=100, client_data=ClientFieldData(        # XRH    Entry  不是这个意思
         prompt_on_new=True, prompt=lambda mi: "RSI 超买阈值 (默认: 70)"))
         
     # RSI超卖阈值，默认30，必须在0-100之间
-    rsi_lower: Decimal = Field(default=30.0, gt=0, lt=100, client_data=ClientFieldData(
+    rsi_lower: Decimal = Field(default=30.0, gt=0, lt=100, client_data=ClientFieldData(       # XRH    Exit   不是这个意思
         prompt_on_new=True, prompt=lambda mi: "RSI 超卖阈值 (默认: 30)"))
         
     # 入场斜率阈值，默认15，必须大于0
@@ -99,10 +99,10 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     slope_entry: Decimal = Field(default=15.0, gt=0, client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "入场斜率阈值（默认：15.0）"))
         
-    # 离场斜率阈值，默认15，必须大于0
+    # 离场斜率阈值，默认6，必须大于0
     # 用于判断离场趋势强度，值越大要求趋势越强
-    slope_exit: Decimal = Field(default=15.0, gt=0, client_data=ClientFieldData(
-        prompt_on_new=True, prompt=lambda mi: "离场斜率阈值（默认：15.0）"))
+    slope_exit: Decimal = Field(default=6.0, gt=0, client_data=ClientFieldData(                    #默认<6     XRH  02-13 19:38
+        prompt_on_new=True, prompt=lambda mi: "离场斜率阈值（默认：6.0）"))
         
     # ======= 风险控制参数 =======
     # 最大持仓规模，以账户余额的百分比表示，默认15%
@@ -127,17 +127,17 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     
     # ======= 订单执行参数 =======
     # 单个订单的数量，以基础资产计价（如对于BTC-USDT，则以BTC计价）
-    order_amount: Decimal = Field(default=0.01, gt=0, client_data=ClientFieldData(
+    order_amount: Decimal = Field(default=0.01, gt=0, client_data=ClientFieldData(                                       # XRH 默认0.002  02-13 19:38
         prompt_on_new=True, prompt=lambda mi: "单个订单的数量（以基础资产计价，如对于BTC-USDT，则以BTC计价）"))
     
     # 买单价格相对于参考价格的偏移百分比，默认0.1%
     # 例如：如果参考价为100，bid_spread为0.001，则买单价格为99.9
-    bid_spread: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(
+    bid_spread: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  02-13 19:38
         prompt_on_new=True, prompt=lambda mi: "买单价格相对于参考价格的偏移百分比（默认：0.1%)"))
     
     # 卖单价格相对于参考价格的偏移百分比，默认0.1%
     # 例如：如果参考价为100，ask_spread为0.001，则卖单价格为100.1
-    ask_spread: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(
+    ask_spread: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  02-13 19:52
         prompt_on_new=True, prompt=lambda mi: "卖单价格相对于参考价格的偏移百分比（默认：0.1%)"))
     
     # 价格类型选择：
@@ -149,12 +149,12 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     # ======= 仓位管理参数 =======
     # 止损百分比，默认2%
     # 当仓位亏损超过此比例时平仓
-    stop_loss: Decimal = Field(default=Decimal("0.02"), gt=0, client_data=ClientFieldData(
+    stop_loss: Decimal = Field(default=Decimal("0.02"), gt=0, client_data=ClientFieldData(                            # XRH 这里的止损是加杠杆还是没加？我们止损是9%（加杠杆的）02-13 19:52
         prompt_on_new=True, prompt=lambda mi: "止损百分比（默认：2%)"))
     
     # 止盈百分比，默认4%
     # 当仓位盈利超过此比例时平仓
-    take_profit: Decimal = Field(default=Decimal("0.04"), gt=0, client_data=ClientFieldData(
+    take_profit: Decimal = Field(default=Decimal("0.04"), gt=0, client_data=ClientFieldData(                          # XRH 不止盈 默认100%        02-13 19:52
         prompt_on_new=True, prompt=lambda mi: "止盈百分比（默认：4%)"))
     
     # 持仓时间限制（秒），默认1小时
@@ -165,12 +165,12 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     # ======= 权益管理参数 =======
     # 杠杆倍数设置，默认1倍（现货）
     # 合约交易可设置更高的杠杆，如2表示2倍杠杆
-    leverage: int = Field(default=1, gt=0, client_data=ClientFieldData(
+    leverage: int = Field(default=1, gt=0, client_data=ClientFieldData(                                            #XRH 默认10   02-13 19:52
         prompt_on_new=True, prompt=lambda mi: "杠杆倍数（默认：1）"))
     
-    # 最小价差设置，默认0.2%
+    # 最小价差设置，默认0.01%
     # 用于控制订单执行时的最小价差要求
-    min_spread: Decimal = Field(default=Decimal("0.002"), gt=0, client_data=ClientFieldData(
+    min_spread: Decimal = Field(default=Decimal("0.0001"), gt=0, client_data=ClientFieldData(                  #XRH 啥意思？
         prompt_on_new=True, prompt=lambda mi: "最小价差（默认：0.2%)"))
     
     # 仓位模式设置：
@@ -473,14 +473,14 @@ class BbMaRsi(StrategyV2Base):
             self.prev_ema5 = ema5_series.iloc[-2]
             self.prev_ema10 = ema10_series.iloc[-2]
             # 保存当前周期的值
-            self.ema5 = ema5_series.iloc[-1]
+            self.ema5 = ema5_series.iloc[-1]                   
             self.ema10 = ema10_series.iloc[-1]
             
             # 计算归一化斜率 ΔZ(t)
             window_size = min(80, len(candles_df))
-            ema5_window = ema5_series.iloc[-window_size:]
+            ema5_window = ema5_series.iloc[-window_size:]                                                            # XRH [-window_size:]？
             mu_t = Decimal(str(ema5_window.mean()))
-            self.sigma_t = Decimal(str(ema5_window.std()))  # 保存为类变量
+            self.sigma_t = Decimal(str(ema5_window.std()))  # 保存为类变量                                            # XRH 应该是stdev?  02-13 19：13  
             z_t = (Decimal(str(self.ema5)) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
             z_prev = (Decimal(str(ema5_window.iloc[-2])) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
             delta_z = z_t - z_prev
@@ -623,7 +623,7 @@ class BbMaRsi(StrategyV2Base):
         
         # 3. 检查技术指标
         # 条件1：EMA5和EMA10的位置判断 + 金叉判断
-        # TODO XRH审计逻辑
+        # TODO XRH审计逻辑                                                                                      config.bb_middle 能读取到吗？我这里是白色，需要套Decimal吗？ 下同。 其他pass  02-13 19：10
         bb_threshold = (self.config.bb_middle * Decimal(str(self.bb_middle)) + self.config.bb_down * Decimal(str(self.bb_lower))) / Decimal('5')
         ema5_decimal = Decimal(str(self.ema5))
         ema10_decimal = Decimal(str(self.ema10))
@@ -634,13 +634,14 @@ class BbMaRsi(StrategyV2Base):
         cond1 = price_cond and cross_cond
 
         # 条件2：趋势强度判断     
-        # TODO XRH审计逻辑
-        slope_threshold = Decimal(str(self.config.slope_entry)) / self.sigma_t if self.sigma_t else Decimal('0')
-        cond2 = self.delta_z > slope_threshold
+        # TODO XRH审计逻辑                                                                                           名字改为归一化斜率？               
+        slope_threshold = Decimal(str(self.config.slope_entry)) / self.sigma_t if self.sigma_t else Decimal('0')    # slope_threshold需要Decimal吗？ 为什么是str(slope_entry)
+        cond2 = self.delta_z > slope_threshold                                                                                                         # 其他pass  02-13 19：20
         
         # 条件3：RSI过滤
         # TODO XRH审计逻辑
-        cond3 = self.current_rsi < self.config.rsi_upper
+        cond3 = self.current_rsi < self.config.rsi_upper                                                         # rsi_upper和lower本质是一个，可用config.rsi_entey代替    
+                                                                                                                 # 其他pass  02-13 19：23
         
         # 记录每个条件的状态
         self.logger().info(
@@ -648,10 +649,10 @@ class BbMaRsi(StrategyV2Base):
             f"EMA位置和金叉: {'[满足]' if cond1 else '[不满足]'} "
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"金叉: {'[满足]' if cross_cond else '[不满足]'}), "
-            f"趋势强度: {'[满足]' if cond2 else '[不满足]'} "
+            f"趋势强度: {'[满足]' if cond2 else '[不满足]'} "                                                         #同理，可否为归一化斜率或者斜率？   其他pass  02-13 19：20
             f"(ΔZ={self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "
             f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
-            f"(RSI={self.current_rsi:.1f}, 阈值={self.config.rsi_upper})"
+            f"(RSI={self.current_rsi:.1f}, 阈值={self.config.rsi_upper})"                                    ##RSI_upper-->entry 
         )
         
         # 记录最终决策
@@ -684,20 +685,20 @@ class BbMaRsi(StrategyV2Base):
         
         # 3. 检查技术指标
         # 条件1：EMA5和EMA10的位置判断 + 死叉判断
-        # TODO XRH审计逻辑
+        # TODO XRH审计逻辑                                                                                                           同做多   其他pass  02-13 19：29
         bb_threshold = (self.config.bb_middle * Decimal(str(self.bb_middle)) + self.config.bb_up * Decimal(str(self.bb_upper))) / Decimal('5')
         price_cond = (self.ema5 > bb_threshold) or (self.ema10 > bb_threshold)
         cross_cond = (self.prev_ema5 - self.prev_ema10 > 0) and (self.ema5 - self.ema10 < 0)
         cond1 = price_cond and cross_cond
         
         # 条件2：趋势强度判断
-        # TODO XRH审计逻辑
-        slope_threshold = Decimal(str(self.config.slope_exit)) / self.sigma_t if self.sigma_t else Decimal('0')
+        # TODO XRH审计逻辑                         
+        slope_threshold = Decimal(str(self.config.slope_exit)) / self.sigma_t if self.sigma_t else Decimal('0')           #这里不是exit， 这里的阈值和做多阈值一样  slope_enrty才是对的
         cond2 = -self.delta_z > slope_threshold
         
         # 条件3：RSI过滤
         # TODO XRH审计逻辑
-        cond3 = self.current_rsi > self.config.rsi_lower
+        cond3 = self.current_rsi > self.config.rsi_lower                                                             #rsi_upper和lower本质是一个，用config.rsi_entey代替
         
         # 记录每个条件的状态
         self.logger().info(
@@ -708,7 +709,7 @@ class BbMaRsi(StrategyV2Base):
             f"趋势强度: {'[满足]' if cond2 else '[不满足]'} "
             f"(ΔZ={-self.delta_z:.2f}, 阈值={self.config.slope_exit/self.sigma_t:.2f}), "
             f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
-            f"(RSI={self.current_rsi:.1f}, 阈值={self.config.rsi_lower})"
+            f"(RSI={self.current_rsi:.1f}, 阈值={self.config.rsi_lower})"                              ##RSI_lower-->entry                 02-13 19：29
         )
         
         # 记录最终决策
@@ -732,7 +733,7 @@ class BbMaRsi(StrategyV2Base):
             Decimal: 计算得到的价差百分比
         """
         return max(
-            self.config.min_spread,  # 最小价差要求（0.2%）
+            self.config.min_spread,  # 最小价差要求（0.01%）
             (self.config.bid_spread + self.config.ask_spread) / Decimal("2")  # 买卖价差的平均值
         )
         
@@ -859,6 +860,7 @@ class BbMaRsi(StrategyV2Base):
         # 计算做多价格 = 下一根 K 线开盘价下跌买入价差，考虑滑点
         # TODO 计算下一根 K 线开盘价open_prices_next
         spread = self.get_spread()
+        # 阻塞当前进程 监听下一根candel的出现 马上唤醒进程
         buy_price = open_prices_next * (1 - spread)
         
         # 创建仓位执行器配置
@@ -983,14 +985,14 @@ class BbMaRsi(StrategyV2Base):
             bool: 是否触发平多信号
         """
         # TODO XRH审计逻辑
-        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data
+        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data                              #这个没看懂      02-13 19：35
         
         # 条件1：EMA5大于BB中轨
         cond_exit1_long = current_ema5 > self.bb_middle[-1]
         
         # 条件2A：斜率小于阈值且RSI大于退出阈值
-        cond_exit2a_long = (abs(delta_z_current) < (self.config.slope_exit / self.current_volatility) and 
-                           self.current_rsi > self.config.rsi_upper)
+        cond_exit2a_long = (abs(delta_z_current) < (self.config.slope_exit / self.current_volatility) and       #1、千万不要abs！    2、这里弄混了，平多的slope_exit有问题  3、分母有问题是sigma_t
+                           self.current_rsi > self.config.rsi_upper)                                                # 不是rsi_upper,RSIexit        self.current_rsi > self.config.rsi_exit)  
         
         # 条件2B：EMA5和EMA10的交叉（由上穿变为下穿）
         cond_exit2b_long = ((prev_ema5 - prev_ema10 > 0) and 
@@ -1012,14 +1014,14 @@ class BbMaRsi(StrategyV2Base):
             bool: 是否触发平空信号
         """
         # TODO XRH审计逻辑
-        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data
+        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data          #没看懂             02-113 19：35
         
         # 条件1：EMA5小于BB中轨
         cond_exit1_short = current_ema5 < self.bb_middle[-1]
         
         # 条件2A：斜率小于阈值且RSI小于退出阈值
-        cond_exit2a_short = (abs(delta_z_current) < (self.config.slope_exit / self.current_volatility) and 
-                            self.current_rsi < self.config.rsi_lower)
+        cond_exit2a_short = (-(delta_z_current) < (self.config.slope_exit / self.current_volatility) and    #1、千万不要abs！这是是负值的  2、这里弄混了，平多的slope_exit有问题  3、分母有问题sigma_t
+                            self.current_rsi < self.config.rsi_lower)                                                # 不是rsi_lower   RSI_exit             self.current_rsi < (100-(self.config.rsi_lower))
         
         # 条件2B：EMA5和EMA10的交叉（由下穿变为上穿）
         cond_exit2b_short = ((prev_ema5 - prev_ema10 < 0) and 
@@ -1064,17 +1066,19 @@ class BbMaRsi(StrategyV2Base):
             return []
         
         # 计算EMA5的斜率
-        current_ema5, prev_ema5, _, _ = ema_data
-        delta_z_current = (current_ema5 - prev_ema5) / prev_ema5
+        ## _check_exit_long_conditions _check_exit_long_conditions中使用的变量需要实时计算
+
+        current_ema5, prev_ema5, _, _ = ema_data                                                 # XRH  这里是干嘛的？ 
+        delta_z_current = (current_ema5 - prev_ema5) / prev_ema5                                 # 不是计算方法那里已经有一个了吗？还要这个干嘛？02-13 19 ：46
         
         # 检查平仓条件
         actions = []
         for controller_id, executors in self.executor_orchestrator.active_executors.items():
             for executor in executors:
-                if position > Decimal("0") and self._check_exit_long_conditions(delta_z_current, ema_data):
+                if position > Decimal("0") and self._check_exit_long_conditions(delta_z_current, ema_data):                                #RSI
                     self.logger().info(f"检测到平多信号，准备平仓 - 执行器ID: {executor.id}")
                     actions.append(self._create_stop_action(executor.id))
-                elif position < Decimal("0") and self._check_exit_short_conditions(delta_z_current, ema_data):
+                elif position < Decimal("0") and self._check_exit_long_conditions(delta_z_current, ema_data):
                     self.logger().info(f"检测到平空信号，准备平仓 - 执行器ID: {executor.id}")
                     actions.append(self._create_stop_action(executor.id))
         
