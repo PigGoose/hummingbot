@@ -9,11 +9,12 @@ from pydantic import Field, validator                                           
 from hummingbot.client.config.config_data_types import ClientFieldData
 from hummingbot.connector.connector_base import ConnectorBase
 from hummingbot.core.clock import Clock
-from hummingbot.core.data_type.common import OrderType, PositionMode, PriceType, TradeType
+from hummingbot.core.data_type.common import OrderType, PositionMode, PriceType, TradeType, PositionSide
 from hummingbot.data_feed.candles_feed.candles_factory import CandlesConfig
 from hummingbot.strategy.strategy_v2_base import StrategyV2Base, StrategyV2ConfigBase
 from hummingbot.strategy_v2.executors.position_executor.data_types import PositionExecutorConfig, TripleBarrierConfig
 from hummingbot.strategy_v2.models.executor_actions import CreateExecutorAction, StopExecutorAction, StopExecutorAction
+from hummingbot.strategy_v2.models.executors_info import ExecutorInfo
 
 class BbMaRsiConfig(StrategyV2ConfigBase):
     """
@@ -95,18 +96,18 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
         prompt_on_new=True, prompt=lambda mi: "RSI 出场阈值 (默认: 30)"))
         
     # 入场斜率阈值，默认15，必须大于0
-    # 用于判断（归一化）斜率，值越大要求（归一化）斜率越强                                                           # XRH 名字叫做（归一化）斜率，Δz，不要叫做趋势强度吧，否则太糊了，下同  2025-02-14 12:20 #ZXY 修改了名字 at 2025-02-14 14:30
+    # 用于判断入场（归一化）斜率，值越大要求（归一化）斜率越强                                                           # XRH 名字叫做（归一化）斜率，Δz，不要叫做趋势强度吧，否则太糊了，下同  2025-02-14 12:20 #ZXY 修改了名字 at 2025-02-14 14:30
     slope_entry: Decimal = Field(default=15.0, gt=0, client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "入场（归一化）斜率阈值（默认：15.0）"))
         
     # 离场斜率阈值，默认6，必须大于0
-    # 用于判断离场趋势强度，值越大要求趋势越强
+    # 用于判断离场（归一化）斜率，值越大要求趋势越强
     slope_exit: Decimal = Field(default=6.0, gt=0, client_data=ClientFieldData(                    #默认<6   XRH  02-13 19:38  modified by ZXY at 2025-02-14 10:12
         prompt_on_new=True, prompt=lambda mi: "离场斜率阈值（默认：6.0）"))
         
     # ======= 风险控制参数 =======
-    # 最大持仓规模，以账户余额的百分比表示，默认15%
-    max_position_size: Decimal = Field(default=Decimal("0.15"), gt=0, client_data=ClientFieldData(
+    # 最大持仓规模，以账户余额的百分比表示，默认25%
+    max_position_size: Decimal = Field(default=Decimal("0.25"), gt=0, client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "最大持仓规模（默认：15%）"))
     
     # 最小成交量阈值，用于确保市场流动性充足
@@ -118,8 +119,8 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     阈值的单位是基础货币（如BTC-USDT中的BTC）的数量
     remark by zxy at 2025-02-14 14:30
     '''
-    min_volume_threshold: Decimal = Field(default=Decimal("1.0"), gt=0, client_data=ClientFieldData(                   # XRH 1这个值代表最小成交量为1min起码交易1次吗？ 2025-02-14 12:20
-        prompt_on_new=True, prompt=lambda mi: "最小成交量阈值（默认：1.0）"))
+    min_volume_threshold: Decimal = Field(default=Decimal("0.0"), gt=0, client_data=ClientFieldData(                   # XRH 1这个值代表最小成交量为1min起码交易1次吗？ 2025-02-14 12:20
+        prompt_on_new=True, prompt=lambda mi: "最小成交量阈值（默认：0.0）"))
     
     # 最大允许波动率，默认5%,超过此值则暂停交易
     # 100,000 - (100,000 * 0.05) = 95,000
@@ -324,9 +325,7 @@ class BbMaRsi(StrategyV2Base):
         self.rsi = None        # 当前 RSI 值
         self.sigma_t = None            # EMA5的标准差                           
                                                                            # XRH 可以再加一个EMA5 ave？
-        # ======= 订单管理变量 =======
-        self.buy_order = None   # 当前买单
-        self.sell_order = None  # 当前卖单
+        # ======= 时间戳管理 =======
         self._last_timestamp = 0  # 上次更新时间戳
         
         # ======= 性能跟踪指标 =======
@@ -395,7 +394,7 @@ class BbMaRsi(StrategyV2Base):
         3. 执行交易
         """
         try:
-            # 计算技术指标
+            # 1. 计算技术指标
             self._calculate_indicators()
             
             # 如果策略未就绪，直接返回
@@ -403,20 +402,19 @@ class BbMaRsi(StrategyV2Base):
                 self.logger().info("策略未就绪,跳过本次tick")
                 return
             
-            # 检查是否需要平仓
-            stop_actions = self._exit_actions_proposal()
-            if stop_actions:
+            # 2. 检查是否需要平仓
+            exit_actions = self._exit_actions_proposal()
+            if exit_actions:
                 self.logger().info("检测到平仓信号，执行平仓操作")
-                return stop_actions
+                return exit_actions
             
-            # 创建交易动作建议
-            actions = self._entry_actions_proposal()
-            
-            # 如果有交易动作，执行它们
-            if actions:
-                self.logger().info(f"执行交易动作: {len(actions)}个")
-                for action in actions:
-                    self.executors.append(action)
+            # 3. 创建交易动作建议
+            entry_actions = self._entry_actions_proposal()
+            if entry_actions:
+                self.logger().info(f"执行交易动作: {len(entry_actions)}个")
+                for action in entry_actions:
+                    # 通过executor_orchestrator创建执行器
+                    self.executor_orchestrator.create_executor(action)
                     
         except Exception as e:
             self.logger().error(f"Tick处理出错: {str(e)}")
@@ -535,7 +533,7 @@ class BbMaRsi(StrategyV2Base):
         Returns:
             tuple: (delta_z, sigma_t) 归一化斜率和标准差
         """
-        window_size = min(80, len(candles_df))
+        window_size = min(81, len(candles_df))
         ema5_window = self.ema5_series.iloc[-window_size:]
         mu_t = Decimal(str(ema5_window.mean()))
         self.sigma_t = Decimal(str(ema5_window.std()))  # 保存为类变量
@@ -677,24 +675,6 @@ class BbMaRsi(StrategyV2Base):
         self.logger().info(f"市场数据 - 成交量: {self.metrics['current_volume']}, 
                            波动率: {self.metrics['current_volatility']}, 
                            持仓价值: {self.metrics['position_value']}")
-
-    def _get_max_position_value(self) -> Decimal:
-        """
-        获取最大允许的持仓价值
-        
-        计算方法：
-        1. 获取计价货币的可用余额（如USDT）
-        2. 将余额乘以最大持仓比例
-        
-        Returns:
-            Decimal: 最大允许的持仓价值
-        """
-        # 获取交易所连接器
-        connector = self.connectors[self.config.exchange]
-        # 获取计价货币余额（如BTC-USDT中的USDT）
-        quote_balance = connector.get_available_balance(self.config.trading_pair.split('-')[1])
-        # 计算最大持仓价值 = 余额 * 最大持仓比例
-        return quote_balance * self.config.max_position_size
     
     def _entry_actions_proposal(self) -> List[CreateExecutorAction]:
         """
@@ -756,7 +736,7 @@ class BbMaRsi(StrategyV2Base):
         cross_cond = (prev_ema5_decimal - prev_ema10_decimal < Decimal('0')) and (ema5_decimal - ema10_decimal > Decimal('0'))     # XRH 计算减法要套括号吗？ 2025-02-14 12:20 # python - 优先级大于 < 和 > # remark by zxy at 2024-02-14 14:30
         cond1 = price_cond and cross_cond
 
-        # 条件2：趋势强度判断     
+        # 条件2：（归一化）斜率判断     
         # TODO XRH审计逻辑                                                                                           名字改为归一化斜率？ # remark by ZXY 改为 deltaZ ？  at 2024-02-14 10:40      #remark by XRH slope或k吧？2025-02-14 12:20      
         slope_threshold = Decimal(self.config.slope_entry) / self.sigma_t if self.sigma_t else Decimal('0')    # slope_threshold需要Decimal吗？ 为什么是str(slope_entry) # modified by ZXY  需要Decimal 保持数据一致性 ,str已删除 at 2024-02-14 10:47 
         cond2 = self.delta_z > slope_threshold                                                                                                         # 其他pass  02-13 19：20
@@ -815,7 +795,7 @@ class BbMaRsi(StrategyV2Base):
         cross_cond = (self.prev_ema5 - self.prev_ema10 > 0) and (self.ema5 - self.ema10 < 0)                # XRH 计算减法要套括号吗？ 2025-02-14 12:20 # pass 同上
         cond1 = price_cond and cross_cond
         
-        # 条件2：趋势强度判断       # XRH pass 2025-02-14 12:20
+        # 条件2：（归一化）斜率判断       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑                         
         slope_threshold = Decimal(str(self.config.slope_entry)) / self.sigma_t if self.sigma_t else Decimal('0')           #这里不是exit， 这里的阈值和做多阈值一样  slope_enrty才是对的    # modified by ZXY  at 2024-02-14 10:53
         cond2 = -self.delta_z > slope_threshold
@@ -981,15 +961,15 @@ class BbMaRsi(StrategyV2Base):
         Returns:
             CreateExecutorAction: 做多订单执行动作
         """
-        # 获取当前市场价格
-        current_price = Decimal(str(self.current_price))
+        # 1. 获取当前市场价格
+        # TODO 使用最新根的开盘价
+        current_open_price = Decimal(str(self.current_price))
         
-        # 计算做多价格 = 下一根 K 线开盘价下跌买入价差，考虑滑点
-        # TODO 计算下一根 K 线开盘价open_prices_next
+        # 2. 计算做多价格 = 下一根 K 线开盘价下跌买入价差，考虑滑点
         spread = self._get_spread()
-        buy_price = open_prices_next * (1 - spread)
+        buy_price = current_open_price * (1 - spread)
         
-        # 创建仓位执行器配置
+        # 3. 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
             timestamp=self.market_data_provider.time(),              # 当前时间戳
             trading_pair=self.config.trading_pair,                   # 交易对
@@ -1003,11 +983,12 @@ class BbMaRsi(StrategyV2Base):
             triple_barrier_conf=self.config.triple_barrier_config()  # 三重障碍配置
         )
         
-        # 创建执行动作
+        # 4. 创建执行动作
         action = CreateExecutorAction(
             executor_config=executor_config
         )
         
+        # 5. 记录日志
         self.logger().info(
             f"创建做多订单 - 交易对: {self.config.trading_pair}, "
             f"价格: {buy_price}, 数量: {self.config.order_amount}, "
@@ -1030,12 +1011,12 @@ class BbMaRsi(StrategyV2Base):
             CreateExecutorAction: 做空订单执行动作
         """
         # 获取当前市场价格
-        current_price = Decimal(str(self.current_price))
+        # TODO 使用最新根的开盘价
+        current_open_price = Decimal(str(self.current_price))
         
         # 计算做空卖出价格 = 下一根 K 线开盘价上涨卖出价差，考虑滑点
-        # TODO 计算下一根 K 线开盘价open_prices_next
         spread = self._get_spread()
-        sell_price = open_prices_next * (1 + spread)
+        sell_price = current_open_price * (1 + spread)
         
         # 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
@@ -1065,20 +1046,46 @@ class BbMaRsi(StrategyV2Base):
         
         return action
         
-    def _create_stop_action(self, executor_id: str, keep_position: bool = False) -> StopExecutorAction:
+    def _create_close_action(self, executor_id: str, position_side: PositionSide) -> CreateExecutorAction:
         """
-        创建停止动作
+        创建限价平仓动作
         
         Args:
             executor_id (str): 要停止的执行器ID
-            keep_position (bool): 是否保持当前仓位
+            position_side (PositionSide): 平仓方向，Long或Short
         
         Returns:
-            StopExecutorAction: 停止动作
+            CreateExecutorAction: 限价平仓动作
         """
-        return StopExecutorAction(
+        # 获取当前市场价格
+        current_open_price = Decimal(str(self.current_price))
+        
+        # 计算平仓价格，考虑滑点
+        spread = self._get_spread()
+        if position_side == PositionSide.LONG:
+            # 平多仓，在当前价格基础上减去价差，确保能成交
+            close_price = current_open_price * (1 - spread)
+        else:
+            # 平空仓，在当前价格基础上加上价差，确保能成交
+            close_price = current_open_price * (1 + spread)
+        
+        # 创建仓位执行器配置
+        executor_config = PositionExecutorConfig(
+            exchange=self.config.exchange,
+            trading_pair=self.config.trading_pair,
+            side=position_side,  # 平仓方向与持仓方向相反
+            amount=self.config.order_amount,
+            take_profit=None,  # 平仓不需要设置止盈
+            stop_loss=None,    # 平仓不需要设置止损
+            time_limit=self.config.time_limit,
+            entry_price=close_price,
+            mode=self.config.position_mode
+        )
+        
+        # 创建执行器动作
+        return CreateExecutorAction(
             executor_id=executor_id,
-            keep_position=keep_position
+            executor_config=executor_config
         )
     
     def _get_ema_data(self) -> Optional[tuple]:
@@ -1112,7 +1119,7 @@ class BbMaRsi(StrategyV2Base):
         """
         
         # 条件1：EMA5大于BB中轨
-        cond_exit1_long = self.ema5 > self.bb_middle                    # XRH 注意我们需要的是条件蜡烛的判断，而不是最新蜡烛的判断，下所有条件都同 2025-02-14 12:20  # self.bb_middle已经是条件蜡烛的数据，不需要再用[-1] by ZXY at 2025-02-14 14:30
+        cond_exit1_long = self.ema5 > self.bb_middle                  # XRH 注意我们需要的是条件蜡烛的判断，而不是最新蜡烛的判断，下所有条件都同 2025-02-14 12:20  # self.bb_middle已经是条件蜡烛的数据，不需要再用[-1] by ZXY at 2025-02-14 14:30
         
         # 条件2A：斜率小于阈值且RSI大于退出阈值
         '''
@@ -1201,11 +1208,11 @@ class BbMaRsi(StrategyV2Base):
         for controller_id, executors in self.executor_orchestrator.active_executors.items():
             for executor in executors:
                 if position > Decimal("0") and self._check_exit_long_conditions():
-                    self.logger().info(f"检测到平多信号，准备平仓 - 执行器ID: {executor.id}")
-                    actions.append(self._create_stop_action(executor.id))
+                    self.logger().info(f"检测到平多信号，准备以限价单平仓 - 执行器ID: {executor.config.id or executor.id}")
+                    actions.append(self._create_close_action(executor.config.id or executor.id, PositionSide.LONG))  # True for long position
                 elif position < Decimal("0") and self._check_exit_short_conditions():
-                    self.logger().info(f"检测到平空信号，准备平仓 - 执行器ID: {executor.id}")
-                    actions.append(self._create_stop_action(executor.id))
+                    self.logger().info(f"检测到平空信号，准备以限价单平仓 - 执行器ID: {executor.config.id or executor.id}")
+                    actions.append(self._create_close_action(executor.config.id or executor.id, PositionSide.SHORT))  # False for short position
         
         return actions
     
