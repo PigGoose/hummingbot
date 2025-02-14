@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import pandas_ta as ta  # noqa: F401
-from pydantic import Field, validator
+from pydantic import Field, validator                                                   # XRH 这里划了横线，不用管吗？ 2025-02-14 12:20
 
 from hummingbot.client.config.config_data_types import ClientFieldData
 from hummingbot.connector.connector_base import ConnectorBase
@@ -87,21 +87,21 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
         prompt_on_new=True, prompt=lambda mi: "RSI 周期（默认：15）"))
         
     # RSI进场阈值，默认70，必须在0-100之间
-    rsi_entry: Decimal = Field(default=70.0, gt=0, lt=100, client_data=ClientFieldData(        # XRH    Entry  不是这个意思  modified by ZXY at 2024-02-14 10:12
+    rsi_entry: Decimal = Field(default=70.0, gt=0, lt=100, client_data=ClientFieldData(        # XRH    Entry  不是这个意思  modified by ZXY at 2025-02-14 10:12
         prompt_on_new=True, prompt=lambda mi: "RSI 进场阈值 (默认: 70)"))
         
     # RSI出场阈值，默认30，必须在0-100之间
-    rsi_exit: Decimal = Field(default=30.0, gt=0, lt=100, client_data=ClientFieldData(         # XRH    Exit   不是这个意思  modified by ZXY at 2024-02-14 10:12
+    rsi_exit: Decimal = Field(default=30.0, gt=0, lt=100, client_data=ClientFieldData(         # XRH    Exit   不是这个意思  modified by ZXY at 2025-02-14 10:12
         prompt_on_new=True, prompt=lambda mi: "RSI 出场阈值 (默认: 30)"))
         
     # 入场斜率阈值，默认15，必须大于0
-    # 用于判断趋势强度，值越大要求趋势越强
+    # 用于判断趋势强度，值越大要求趋势越强                                                           # XRH 名字叫做（归一化）斜率，Δz，不要叫做趋势强度吧，否则太糊了，下同  2025-02-14 12:20
     slope_entry: Decimal = Field(default=15.0, gt=0, client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "入场斜率阈值（默认：15.0）"))
         
     # 离场斜率阈值，默认6，必须大于0
     # 用于判断离场趋势强度，值越大要求趋势越强
-    slope_exit: Decimal = Field(default=6.0, gt=0, client_data=ClientFieldData(                    #默认<6   XRH  02-13 19:38  modified by ZXY at 2024-02-14 10:12
+    slope_exit: Decimal = Field(default=6.0, gt=0, client_data=ClientFieldData(                    #默认<6   XRH  02-13 19:38  modified by ZXY at 2025-02-14 10:12
         prompt_on_new=True, prompt=lambda mi: "离场斜率阈值（默认：6.0）"))
         
     # ======= 风险控制参数 =======
@@ -111,7 +111,7 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     
     # 最小成交量阈值，用于确保市场流动性充足
     # 如果市场成交量低于这个阈值，策略会认为当前市场流动性不足，会暂停交易
-    min_volume_threshold: Decimal = Field(default=Decimal("1.0"), gt=0, client_data=ClientFieldData(
+    min_volume_threshold: Decimal = Field(default=Decimal("1.0"), gt=0, client_data=ClientFieldData(                   # XRH 1这个值代表最小成交量为1min起码交易1次吗？ 2025-02-14 12:20
         prompt_on_new=True, prompt=lambda mi: "最小成交量阈值（默认：1.0）"))
     
     # 最大允许波动率，默认5%,超过此值则暂停交易
@@ -127,7 +127,7 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     
     # ======= 订单执行参数 =======
     # 单个订单的数量，以基础资产计价（如对于BTC-USDT，则以BTC计价）
-    order_amount: Decimal = Field(default=0.002, gt=0, client_data=ClientFieldData(                                      # XRH 默认0.002  02-13 19:38 modified by ZXY at 2024-02-14 10:15
+    order_amount: Decimal = Field(default=0.002, gt=0, client_data=ClientFieldData(                                      # XRH 默认0.002  2025-02-13 19:38 modified by ZXY at 2024-02-14 10:15
         prompt_on_new=True, prompt=lambda mi: "单个订单的数量（以基础资产计价，如对于BTC-USDT，则以BTC计价）"))
     
     # 价格类型选择：
@@ -150,7 +150,7 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     # 持仓时间限制（秒），默认1小时
     # 当仓位持有时间超过此值时强制平仓
     time_limit: int = Field(default=60 * 60, gt=0, client_data=ClientFieldData(
-        prompt_on_new=True, prompt=lambda mi: "持仓时间限制（秒）（默认：3600）"))
+        prompt_on_new=True, prompt=lambda mi: "持仓时间限制（秒）（默认：3600）"))                                       # XRH 2小时持仓 7200s （60*60*2）
 
     # ======= 权益管理参数 =======
     # 杠杆倍数设置，默认10倍
@@ -158,19 +158,19 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
         prompt_on_new=True, prompt=lambda mi: "杠杆倍数（默认：10）"))
     
     # 最小价差设置，默认0.01%
-    # 用于控制订单执行时的最小价差要求
+    # 用于控制订单执行时的最小价差要求                                                                                      
     min_order_spread: Decimal = Field(default=Decimal("0.0001"), gt=0, client_data=ClientFieldData(                      #XRH 啥意思？ # 02-13 19:52 remark by ZXY 建仓和平仓时的价差 at 2024-02-14 10:15
         prompt_on_new=True, prompt=lambda mi: "最小价差（默认：0.01%)"))
     
     # bid_price_offset ask_price_offset 这两个参数是为了根据市场实时计算价差 目前使用的是固定值min_order_spread  # modified by ZXY at 2024-02-14 12:04
-    # 买单价格相对于参考价格的偏移百分比，默认0.1%
+    # 买单价格相对于参考价格的偏移百分比，默认0.1%                                                                                   # XRH 0.1% 有点大了 2025-02-14 12:20
     # 例如：如果参考价为100，bid_price_offset为0.001，则买单价格为99.9
-    # bid_price_offset: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  02-13 19:38 
+    # bid_price_offset: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  2025-02-13 19:38 
     #     prompt_on_new=True, prompt=lambda mi: "买单价格相对于参考价格的偏移百分比（默认：0.1%)"))
     
     # # 卖单价格相对于参考价格的偏移百分比，默认0.1%
     # # 例如：如果参考价为100，ask_price_offset为0.001，则卖单价格为100.1
-    # ask_price_offset: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  02-13 19:52
+    # ask_price_offset: Decimal = Field(default=0.001, gt=0, client_data=ClientFieldData(                                        # XRH 朝上买还是朝下买？  2025-02-13 19:52
     #     prompt_on_new=True, prompt=lambda mi: "卖单价格相对于参考价格的偏移百分比（默认：0.1%)"))
     
     
@@ -216,9 +216,9 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
            - 止盈：限价单，确保以盈利价格成交
            - 止损和时间限制：市价单，确保能快速清仓
         当前配置:
-            止损:市价单,2%
-            止盈:限价单,4%
-            时间限制:市价单,1小时
+            止损:市价单,2%                                                                        # XRH 止损9% 2025-02-14 12:20 
+            止盈:限价单,4%                                                                        # XRH 止盈100% 2025-02-14 12:20
+            时间限制:市价单,1小时                                                                  # XRH 2小时持仓 2025-02-14 12:20
         Returns:
             TripleBarrierConfig: 三重障碍配置对象
         """
@@ -242,17 +242,17 @@ class BbMaRsi(StrategyV2Base):
     
     策略逻辑：
     1. 使用布林带判断价格波动区间：
-       - 上轨 = MA + n倍标准差,表示超买区域
-       - 下轨 = MA - n倍标准差,表示超卖区域
+       - 上轨 = EMA + n倍标准差,表示超买区域
+       - 下轨 = EMA - n倍标准差,表示超卖区域
        - 中轨 = 移动平均线，表示价格中枢
     
-    2. 使用移动平均线判断趋势：
-       - 价格在MA之上,认为趋势向上
-       - 价格在MA之下,认为趋势向下
+    2. 使用移动平均线判断买卖时机：
+       - EMA5处EMA10上方 趋势向上
+       - EMA5处EMA10下方 趋势向下
     
     3. 交易信号生成：
-       - 买入条件：价格接近下轨 + MA趋势向上 + 趋势强度足够
-       - 卖出条件：价格接近上轨 + MA趋势向下 + 趋势强度足够
+       - 买入条件：价格接近下轨 + EMA趋势向上 + 达到k阈值
+       - 卖出条件：价格接近上轨 + EMA趋势向下 + 达到k阈值
     
     4. 风险管理：
        - 持仓规模限制
@@ -315,8 +315,8 @@ class BbMaRsi(StrategyV2Base):
         self.current_volume = None      # 当前成交量
         self.current_volatility = None  # 当前波动率
         self.rsi = None        # 当前 RSI 值
-        self.sigma_t = None            # EMA5的标准差
-        
+        self.sigma_t = None            # EMA5的标准差                           
+                                                                           # XRH 可以再加一个EMA5 ave？
         # ======= 订单管理变量 =======
         self.buy_order = None   # 当前买单
         self.sell_order = None  # 当前卖单
@@ -356,7 +356,7 @@ class BbMaRsi(StrategyV2Base):
         # 应用初始设置
         self.apply_initial_setting()
     
-    def apply_initial_setting(self):
+    def apply_initial_setting(self):                                                                           # XRH 可以再检查一下对不对 2025-02-14 12:20
         """
         应用初始设置，为每个合约交易所设置杠杆和仓位模式
         """
@@ -457,7 +457,7 @@ class BbMaRsi(StrategyV2Base):
                 return
             
             # 2. 计算布林带指标
-            bb = candles_df.ta.bbands(close='close', length=self.config.bb_length, std=self.config.bb_std)
+            bb = candles_df.ta.bbands(close='close', length=self.config.bb_length, std=self.config.bb_std)             # XRH 这里的计算没看懂 2025-02-14 12:20
             self.bb_middle = bb[f'BBM_{self.config.bb_length}_{self.config.bb_std}'].iloc[-1]  # 中轨
             self.bb_upper = bb[f'BBU_{self.config.bb_length}_{self.config.bb_std}'].iloc[-1]   # 上轨
             self.bb_lower = bb[f'BBL_{self.config.bb_length}_{self.config.bb_std}'].iloc[-1]   # 下轨
@@ -470,12 +470,12 @@ class BbMaRsi(StrategyV2Base):
             # 计算 EMA5 和 EMA10
             ema5_series = candles_df.ta.ema(close='close', length=self.config.ema5_length)
             ema10_series = candles_df.ta.ema(close='close', length=self.config.ema10_length)
-            # 保存上一周期的值
-            self.prev_ema5 = ema5_series.iloc[-2]
-            self.prev_ema10 = ema10_series.iloc[-2]
-            # 保存当前周期的值
-            self.ema5 = ema5_series.iloc[-1]                   
-            self.ema10 = ema10_series.iloc[-1]
+            # 保存条件蜡烛上一周期的值                                                                                      # XRH 我修改了名字 “上一周期” -> “条件蜡烛上一周期”  2025-02-14 12:20
+            self.prev_ema5 = ema5_series.iloc[-2]                                                                         # XRH 是否是.iloc[-3]?  2025-02-14 12:20 
+            self.prev_ema10 = ema10_series.iloc[-2]                                                                       # XRH 是否是.iloc[-3]?  2025-02-14 12:20
+            # 保存条件蜡烛当前周期的值                                                                                      # XRH 我修改了名字 “当前周期” -> “条件蜡烛当前周期”  2025-02-14 12:20
+            self.ema5 = ema5_series.iloc[-1]                                                                              # XRH 是否是.iloc[-2]?  2025-02-14 12:20
+            self.ema10 = ema10_series.iloc[-1]                                                                            # XRH 是否是.iloc[-2]?  2025-02-14 12:20
             
             # 计算归一化斜率 ΔZ(t)
             window_size = min(80, len(candles_df))
@@ -483,13 +483,13 @@ class BbMaRsi(StrategyV2Base):
             mu_t = Decimal(str(ema5_window.mean()))
             self.sigma_t = Decimal(str(ema5_window.std()))  # 保存为类变量                                            # XRH 应该是stdev?  02-13 19：13  .dtd()数据正确 by ZXY at 2024-02-14 10:29
             z_t = (Decimal(str(self.ema5)) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
-            z_prev = (Decimal(str(ema5_window.iloc[-2])) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
+            z_prev = (Decimal(str(ema5_window.iloc[-2])) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')   # XRH 1、是否是.iloc[-3]? 2、ema5_window 用 prev_ema5替换？ 2025-02-14 12:20
             delta_z = z_t - z_prev
             self.delta_z = delta_z
 
             # 4. 计算市场数据
             # 计算RSI (使用pandas_ta)
-            self.rsi = candles_df.ta.rsi(close='close', length=self.config.rsi_length).iloc[-1]
+            self.rsi = candles_df.ta.rsi(close='close', length=self.config.rsi_length).iloc[-1]                     # XRH 是否是.iloc[-2]? 2025-02-14 12:20
             
             # 成交量
             self.current_volume = candles_df['volume'].iloc[-1]
@@ -519,7 +519,7 @@ class BbMaRsi(StrategyV2Base):
         更新策略的性能指标
         
         更新以下指标：
-        1. 技术指标值（布林带、MA）
+        1. 技术指标值（布林带、EMA）
         2. 市场数据（价格、成交量、波动率）
         
         注意：所有指标都会转换为 float 类型存储
@@ -531,18 +531,20 @@ class BbMaRsi(StrategyV2Base):
         self.metrics["bb_lower"] = float(self.bb_lower) if self.bb_lower is not None else None
         self.metrics["ema5"] = float(self.ema5) if self.ema5 is not None else None
         self.metrics["ema10"] = float(self.ema10) if self.ema10 is not None else None
+        self.metrics["rsi"] = float(self.rsi) if self.rsi is not None else None                                          # XRH 我把540行的 RSI 移到了这里 2025-02-14 12:20
         
         # 更新市场数据
         self.metrics["current_price"] = float(str(self.current_price)) if self.current_price is not None else None
         self.metrics["current_volume"] = float(str(self.current_volume)) if self.current_volume is not None else None
         self.metrics["current_volatility"] = float(str(self.current_volatility)) if self.current_volatility is not None else None
-        self.metrics["rsi"] = float(self.rsi) if self.rsi is not None else None
+
         
         # 更新仓位和盈亏数据
         position_value = self._calculate_position_value()
         self.metrics["position_value"] = float(position_value)
         
-        self.logger().info(f"当前指标 - 价格: {self.metrics['current_price']}, BB上轨: {self.metrics['bb_upper']}, BB下轨: {self.metrics['bb_lower']}, EMA5: {self.metrics['ema5']}, EMA10: {self.metrics['ema10']}")
+        self.logger().info(f"当前指标 - 价格: {self.metrics['current_price']}, BB上轨: {self.metrics['bb_upper']}, BB下轨: {self.metrics['bb_lower']},
+                           EMA5: {self.metrics['ema5']}, EMA10: {self.metrics['ema10']}")                           # XRH 是否加上RSI 2025-02-14 12:20 
         self.logger().info(f"市场数据 - 成交量: {self.metrics['current_volume']}, 波动率: {self.metrics['current_volatility']}, 持仓价值: {self.metrics['position_value']}")
         self.metrics.update({
             # 技术指标值
@@ -550,7 +552,7 @@ class BbMaRsi(StrategyV2Base):
             "bb_lower": float(self.bb_lower) if self.bb_lower is not None else None,  # 布林带下轨
             "ema5": float(self.ema5) if self.ema5 is not None else None,  # 5周期指数移动平均线
             "ema10": float(self.ema10) if self.ema10 is not None else None,  # 10周期指数移动平均线
-            
+                                                                                                       # XRH 是否更新RSI 2025-02-14 12:20
             # 市场数据
             "current_price": float(self.current_price) if self.current_price is not None else None,  # 当前价格
             "current_volume": float(self.current_volume) if self.current_volume is not None else None,  # 当前成交量
@@ -607,7 +609,7 @@ class BbMaRsi(StrategyV2Base):
         # 记录当前市场状态
         self.logger().info(
             f"检查做多条件 - 当前价格: {self.current_price}, "
-            f"BB中轨: {self.bb_middle}, BB下轨: {self.bb_lower}, "
+            f"BB中轨: {self.bb_middle}, BB下轨: {self.bb_lower}, "                           # XRH 这里如果是实时的，那是不是得为.iloc[-1]? 下同  2025-02-14 12:20
             f"EMA5: {self.ema5}, EMA10: {self.ema10}, "
             f"RSI: {self.rsi}"
         )
@@ -626,21 +628,21 @@ class BbMaRsi(StrategyV2Base):
         # 条件1：EMA5和EMA10的位置判断 + 金叉判断
         # TODO XRH审计逻辑       config.bb_middle 能读取到吗？我这里是白色，需要套Decimal吗？ 下同。 其他pass  02-13 19：10 # ZXY 可以点了 需要Decimal 保持数据一致性 by ZXY at 2024-02-14 10:40
         bb_threshold = (self.config.bb_middle * Decimal(str(self.bb_middle)) + self.config.bb_down * Decimal(str(self.bb_lower))) / Decimal('5')
-        self.logger().info(f"BB中轨K: {self.config.bb_middle}, BB下轨: {self.bb_lower}, 阈值: {bb_threshold}")
+        self.logger().info(f"BB中轨K: {self.config.bb_middle}, BB下轨: {self.bb_lower}, 阈值: {bb_threshold}")              # XRH BB中轨打印错了 应该打印self.bb_middle 而不是self.config.bb_middle 2025-02-14 12:20
         ema5_decimal = Decimal(str(self.ema5))
         ema10_decimal = Decimal(str(self.ema10))
         prev_ema5_decimal = Decimal(str(self.prev_ema5))
         prev_ema10_decimal = Decimal(str(self.prev_ema10))
         price_cond = (ema5_decimal < bb_threshold) or (ema10_decimal < bb_threshold)
-        cross_cond = (prev_ema5_decimal - prev_ema10_decimal < Decimal('0')) and (ema5_decimal - ema10_decimal > Decimal('0'))
+        cross_cond = (prev_ema5_decimal - prev_ema10_decimal < Decimal('0')) and (ema5_decimal - ema10_decimal > Decimal('0'))     # XRH 计算减法要套括号吗？ 2025-02-14 12:20
         cond1 = price_cond and cross_cond
 
         # 条件2：趋势强度判断     
-        # TODO XRH审计逻辑                                                                                           名字改为归一化斜率？ # remark by ZXY 改为 deltaZ ？  at 2024-02-14 10:40            
+        # TODO XRH审计逻辑                                                                                           名字改为归一化斜率？ # remark by ZXY 改为 deltaZ ？  at 2024-02-14 10:40      #remark by XRH slope或k吧？2025-02-14 12:20      
         slope_threshold = Decimal(self.config.slope_entry) / self.sigma_t if self.sigma_t else Decimal('0')    # slope_threshold需要Decimal吗？ 为什么是str(slope_entry) # modified by ZXY  需要Decimal 保持数据一致性 ,str已删除 at 2024-02-14 10:47 
         cond2 = self.delta_z > slope_threshold                                                                                                         # 其他pass  02-13 19：20
         
-        # 条件3：RSI过滤
+        # 条件3：RSI过滤       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑
         cond3 = self.rsi < self.config.rsi_entry                                                         # rsi_upper和lower本质是一个，可用config.rsi_entey代替    # modified by ZXY  at 2024-02-14 10:50 
                                                                                                                  # 其他pass  02-13 19：23
@@ -648,11 +650,12 @@ class BbMaRsi(StrategyV2Base):
         # 记录每个条件的状态
         self.logger().info(
             f"做多条件检查 - "
-            f"EMA位置和金叉: {'[满足]' if cond1 else '[不满足]'} "
+            f"EMA位置和金叉: {'[满足]' if cond1 else '[不满足]'} "                                          # XRH 满足不满足直接1 0吧 好看些，下同 2025-02-14 12:20
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"金叉: {'[满足]' if cross_cond else '[不满足]'}), "
-            f"归一化斜率: {'[满足]' if cond2 else '[不满足]'} "                                                         #同理，可否为归一化斜率或者斜率？   其他pass  02-13 19：20  # modified by ZXY  at 2024-02-14 10:50 
-            f"(ΔZ={self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "
+            
+            f"斜率阈值: {'[满足]' if cond2 else '[不满足]'} "                                                         #同理，可否为归一化斜率或者斜率？   其他pass  02-13 19：20  # modified by ZXY  at 2024-02-14 10:50 
+            f"(ΔZ={self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "          # XRH .2f .1f 啥意思 2025-02-14 12:20
             f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
             f"(RSI={self.rsi:.1f}, 阈值={self.config.rsi_entry})"                                            #RSI_upper-->entry   # modified by ZXY  at 2024-02-14 10:50 
         )
@@ -670,7 +673,7 @@ class BbMaRsi(StrategyV2Base):
         # 记录当前市场状态
         self.logger().info(
             f"检查做空条件 - 当前价格: {self.current_price}, "
-            f"BB中轨: {self.bb_middle}, BB下轨: {self.bb_lower}, "
+            f"BB中轨: {self.bb_middle}, BB下轨: {self.bb_lower}, "                           # XRH 这里如果是实时的，那是不是得为.iloc[-1]? 下同  2025-02-14 12:20
             f"EMA5: {self.ema5}, EMA10: {self.ema10}, "
             f"RSI: {self.rsi}"
         )
@@ -690,24 +693,25 @@ class BbMaRsi(StrategyV2Base):
         # TODO XRH审计逻辑                      同做多   其他pass  02-13 19：29  # ZXY 可以点了 需要Decimal 保持数据一致性 by ZXY at 2024-02-14 10:40
         bb_threshold = (self.config.bb_middle * Decimal(str(self.bb_middle)) + self.config.bb_up * Decimal(str(self.bb_upper))) / Decimal('5')
         price_cond = (self.ema5 > bb_threshold) or (self.ema10 > bb_threshold)
-        cross_cond = (self.prev_ema5 - self.prev_ema10 > 0) and (self.ema5 - self.ema10 < 0)
+        cross_cond = (self.prev_ema5 - self.prev_ema10 > 0) and (self.ema5 - self.ema10 < 0)                # XRH 计算减法要套括号吗？ 2025-02-14 12:20
         cond1 = price_cond and cross_cond
         
-        # 条件2：趋势强度判断
+        # 条件2：趋势强度判断       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑                         
         slope_threshold = Decimal(str(self.config.slope_entry)) / self.sigma_t if self.sigma_t else Decimal('0')           #这里不是exit， 这里的阈值和做多阈值一样  slope_enrty才是对的    # modified by ZXY  at 2024-02-14 10:53
         cond2 = -self.delta_z > slope_threshold
         
         # 条件3：RSI过滤
         # TODO XRH审计逻辑
-        cond3 = self.rsi > self.config.rsi_entry                                                             #rsi_upper和lower本质是一个，用config.rsi_entey代替  # modified by ZXY  at 2024-02-14 10:53
+        cond3 = self.rsi > (100 - self.config.rsi_entry)                # XRH 修改公式(100-config.rsi.enrty) 2025-02-14 12:20                                             #rsi_upper和lower本质是一个，用config.rsi_entey代替  # modified by ZXY  at 2024-02-14 10:53
         
         # 记录每个条件的状态
         self.logger().info(
             f"做空条件检查 - "
-            f"EMA位置和死叉: {'[满足]' if cond1 else '[不满足]'} "
+            f"EMA位置和死叉: {'[满足]' if cond1 else '[不满足]'} "                                # XRH 同理， 1/0为满足/不满足 2025-02-14 12:20
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"死叉: {'[满足]' if cross_cond else '[不满足]'}), "
+            
             f"归一化斜率: {'[满足]' if cond2 else '[不满足]'} "                                           # modified by ZXY  at 2024-02-14 10:53
             f"(ΔZ={-self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "             # modified by ZXY  at 2024-02-14 10:53
             f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
@@ -995,7 +999,7 @@ class BbMaRsi(StrategyV2Base):
         
         
         # 条件1：EMA5大于BB中轨
-        cond_exit1_long = current_ema5 > self.bb_middle[-1]
+        cond_exit1_long = current_ema5 > self.bb_middle[-1]                     # XRH 注意我们需要的是条件蜡烛的判断，而不是最新蜡烛的判断，下所有条件都同 2025-02-14 12:20
         
         # 条件2A：斜率小于阈值且RSI大于退出阈值
         '''
@@ -1005,14 +1009,14 @@ class BbMaRsi(StrategyV2Base):
         4. 修改rsi_upper为rsi_exit
          # modified by ZXY  at 2024-02-14 11:15
         '''
-        cond_exit2a_long = (delta_z_current < (self.config.slope_exit / self.sigma_t) and       #1、千万不要abs！    2、这里弄混了，平多的slope_exit有问题  3、分母有问题是sigma_t
+        cond_exit2a_long = (delta_z_current < (self.config.slope_exit / self.sigma_t) and       # XRH 1、千万不要abs！    2、这里弄混了，平多的slope_exit有问题  3、分母有问题是sigma_t 2025-02-13 19：40
                            self.rsi > self.config.rsi_exit)                                                # 不是rsi_upper,RSIexit        self.rsi > self.config.rsi_exit)  
         
         # 条件2B：EMA5和EMA10的交叉（由上穿变为下穿）
         cond_exit2b_long = ((prev_ema5 - prev_ema10 > 0) and 
                            (current_ema5 - current_ema10 < 0))
         
-        # 综合条件
+        # 综合条件   
         cond_exit2_long = cond_exit2a_long or cond_exit2b_long
         return cond_exit1_long and cond_exit2_long
     
@@ -1028,10 +1032,10 @@ class BbMaRsi(StrategyV2Base):
             bool: 是否触发平空信号
         """
         # TODO XRH审计逻辑
-        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data          #没看懂             02-113 19：35  # remark by ZXY  python元组解包 数据来源_get_ema_data() at 2024-02-14 11:16
+        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data          # XRH 没看懂 2025-02-13 19:40             02-113 19：35  # remark by ZXY  python元组解包 数据来源_get_ema_data() at 2024-02-14 11:16
         
         # 条件1：EMA5小于BB中轨
-        cond_exit1_short = current_ema5 < self.bb_middle[-1]
+        cond_exit1_short = current_ema5 < self.bb_middle[-1]                     # XRH 注意我们需要的是条件蜡烛的判断，而不是最新蜡烛的判断，下所有条件都同 2025-02-14 12:20
         
         # 条件2A：斜率小于阈值且RSI小于退出阈值
         '''
@@ -1041,8 +1045,8 @@ class BbMaRsi(StrategyV2Base):
         4. 修改rsi_lower为rsi_exit
          # modified by ZXY  at 2024-02-14 11:15
         '''
-        cond_exit2a_short = (-(delta_z_current) < (self.config.slope_exit / self.sigma_t) and    #1、千万不要abs！这是是负值的  2、这里弄混了，平多的slope_exit有问题  3、分母有问题sigma_t
-                            self.rsi < self.config.rsi_exit)                                                # 不是rsi_lower   RSI_exit             self.rsi < (100-(self.config.rsi_lower))
+        cond_exit2a_short = (-(delta_z_current) < (self.config.slope_exit / self.sigma_t) and    # XRH 1、千万不要abs！这是是负值的  2、这里弄混了，平多的slope_exit有问题  3、分母有问题sigma_t 2025-02-13 19:40
+                            self.rsi < (100 - self.config.rsi_exit))               # XRH 修改100- self.config.rsi_exit 2025-02-14 12:20     #  XRH 不是rsi_lower   RSI_exit          self.rsi < (100-(self.config.rsi_lower)) 2025-02-13 19:40
         
         # 条件2B：EMA5和EMA10的交叉（由下穿变为上穿）
         cond_exit2b_short = ((prev_ema5 - prev_ema10 < 0) and 
@@ -1176,16 +1180,16 @@ class BbMaRsi(StrategyV2Base):
                 "策略性能:",
                 f"盈亏: {self.metrics.get('pnl', 0):.4f} {quote_asset}",
                 f"胜率: {(self.metrics.get('win_count', 0) / (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) * 100 if (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) > 0 else 0):.2f}%",
-                "───────────────────────────────────────────────"
+                "───────────────────────────────────────────────"             # XRH 这里怎么获取的？ 2025-02-14 12:20
             ])
         
         # 6. 风险指标
         lines.extend([
             "风险控制:",
             f"杠杆倍数: {self.config.leverage}x",
-            f"止损设置: {self.config.stop_loss*100:.2f}%",
+            f"止损设置: {self.config.stop_loss*100:.2f}%",                    # XRH 为什么是*100  2025-02-14 12:20
             f"止盈设置: {self.config.take_profit*100:.2f}%",
-            f"持仓时间限制: {self.config.time_limit/3600:.1f}小时",
+            f"持仓时间限制: {self.config.time_limit/3600:.1f}小时",            # XRH 为啥/3600？  2025-02-14 12:20 
             "═══════════════════════════════════════════════"
         ])
         
