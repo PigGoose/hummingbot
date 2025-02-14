@@ -644,8 +644,8 @@ class BbMaRsi(StrategyV2Base):
         
         # 条件3：RSI过滤       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑
-        cond3 = self.rsi < self.config.rsi_entry                                                         # rsi_upper和lower本质是一个，可用config.rsi_entey代替    # modified by ZXY  at 2024-02-14 10:50 
-                                                                                                                 # 其他pass  02-13 19：23
+        cond3 = self.rsi < self.config.rsi_entry                                                         # XRH rsi_upper和lower本质是一个，可用config.rsi_entey代替  2025-02-13 19:40  # modified by ZXY  at 2024-02-14 10:50 
+                                                                                                                 # XRH 其他pass  02-13 19：23
         
         # 记录每个条件的状态
         self.logger().info(
@@ -708,7 +708,7 @@ class BbMaRsi(StrategyV2Base):
         # 记录每个条件的状态
         self.logger().info(
             f"做空条件检查 - "
-            f"EMA位置和死叉: {'[满足]' if cond1 else '[不满足]'} "                                # XRH 同理， 1/0为满足/不满足 2025-02-14 12:20
+            f"EMA位置和死叉: {'[满足]' if cond1 else '[不满足]'} "                                # XRH 同理， 改成1/0为满足/不满足 2025-02-14 12:20
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"死叉: {'[满足]' if cross_cond else '[不满足]'}), "
             
@@ -1032,7 +1032,7 @@ class BbMaRsi(StrategyV2Base):
             bool: 是否触发平空信号
         """
         # TODO XRH审计逻辑
-        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data          # XRH 没看懂 2025-02-13 19:40             02-113 19：35  # remark by ZXY  python元组解包 数据来源_get_ema_data() at 2024-02-14 11:16
+        current_ema5, prev_ema5, current_ema10, prev_ema10 = ema_data          # XRH 没看懂 2025-02-13 19:40   # remark by ZXY  python元组解包 数据来源_get_ema_data() at 2024-02-14 11:16
         
         # 条件1：EMA5小于BB中轨
         cond_exit1_short = current_ema5 < self.bb_middle[-1]                     # XRH 注意我们需要的是条件蜡烛的判断，而不是最新蜡烛的判断，下所有条件都同 2025-02-14 12:20
