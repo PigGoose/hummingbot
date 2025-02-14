@@ -534,10 +534,10 @@ class BbEmaRsi(StrategyV2Base):
         """
         window_size = min(81, len(candles_df))
         ema5_window = self.ema5_series.iloc[-window_size:]
-        mu_t = Decimal(str(ema5_window.mean()))
+        self.mu_t = Decimal(str(ema5_window.mean()))
         self.sigma_t = Decimal(str(ema5_window.std()))  # 保存为类变量
-        z_t = (Decimal(str(self.ema5)) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
-        z_prev = (Decimal(str(ema5_window.iloc[-3])) - mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
+        z_t = (Decimal(str(self.ema5)) - self.mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
+        z_prev = (Decimal(str(ema5_window.iloc[-3])) - self.mu_t) / self.sigma_t if self.sigma_t != 0 else Decimal('0')
         delta_z = z_t - z_prev
         self.delta_z = delta_z
         
@@ -728,40 +728,40 @@ class BbEmaRsi(StrategyV2Base):
         prev_ema5_decimal = Decimal(str(self.prev_ema5))
         prev_ema10_decimal = Decimal(str(self.prev_ema10))
         price_cond = (ema5_decimal < bb_threshold) or (ema10_decimal < bb_threshold)
-        cross_cond = (prev_ema5_decimal - prev_ema10_decimal < Decimal('0')) and (ema5_decimal - ema10_decimal > Decimal('0'))     # XRH 计算减法要套括号吗？ 2025-02-14 12:20 # python - 优先级大于 < 和 > # remark by zxy at 2024-02-14 14:30
-        cond1 = price_cond and cross_cond
+        cross_cond = ((prev_ema5_decimal - prev_ema10_decimal) < Decimal('0')) and ((ema5_decimal - ema10_decimal) > Decimal('0'))     # XRH 计算减法要套括号吗？ 2025-02-14 12:20 # python - 优先级大于 < 和 > # remark by zxy at 2024-02-14 14:30
+        self.long_cond1 = price_cond and cross_cond
 
         # 条件2：（归一化）斜率判断     
         # TODO XRH审计逻辑                                                                                           名字改为归一化斜率？ # remark by ZXY 改为 deltaZ ？  at 2024-02-14 10:40      #remark by XRH slope或k吧？2025-02-14 12:20      
         slope_threshold = Decimal(self.config.slope_entry) / self.sigma_t if self.sigma_t else Decimal('0')    # slope_threshold需要Decimal吗？ 为什么是str(slope_entry) # modified by ZXY  需要Decimal 保持数据一致性 ,str已删除 at 2024-02-14 10:47 
-        cond2 = self.delta_z > slope_threshold                                                                                                         # 其他pass  02-13 19：20
+        self.long_cond2 = self.delta_z > slope_threshold                                                                                                         # 其他pass  02-13 19：20
         
         # 条件3：RSI过滤       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑
-        cond3 = self.rsi < self.config.rsi_entry                                                         # XRH rsi_upper和lower本质是一个，可用config.rsi_entey代替  2025-02-13 19:40  # modified by ZXY  at 2024-02-14 10:50 
+        self.long_cond3 = self.rsi < self.config.rsi_entry                                                         # XRH rsi_upper和lower本质是一个，可用config.rsi_entey代替  2025-02-13 19:40  # modified by ZXY  at 2024-02-14 10:50 
                                                                                                                  # XRH 其他pass  02-13 19：23
         
         # 记录每个条件的状态
         self.logger().info(
             f"做多条件检查 - "
-            f"EMA位置和金叉: {'[满足]' if cond1 else '[不满足]'} "                                          # XRH 满足不满足直接1 0吧 好看些，下同 2025-02-14 12:20 # 我感觉注释多了一堆1 0可能不好看
+            f"EMA位置和金叉: {'[满足]' if self.long_cond1 else '[不满足]'} "                                          # XRH 满足不满足直接1 0吧 好看些，下同 2025-02-14 12:20 # 我感觉注释多了一堆1 0可能不好看
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"金叉: {'[满足]' if cross_cond else '[不满足]'}), "
             
-            f"斜率阈值: {'[满足]' if cond2 else '[不满足]'} "                                                         #同理，可否为归一化斜率或者斜率？   其他pass  02-13 19：20  # modified by ZXY  at 2024-02-14 10:50 
+            f"斜率阈值: {'[满足]' if self.long_cond2 else '[不满足]'} "                                                         #同理，可否为归一化斜率或者斜率？   其他pass  02-13 19：20  # modified by ZXY  at 2024-02-14 10:50 
             f"(ΔZ={self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "          # XRH .2f .1f 啥意思 2025-02-14 12:20  # .2f表示保留两位小数的浮点数格式化，如 1.23。.1f表示保留一位小数，如 1.2 by ZXY at 2025-02-14 14:30
-            f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
+            f"RSI过滤: {'[满足]' if self.long_cond3 else '[不满足]'} "
             f"(RSI={self.rsi:.1f}, 阈值={self.config.rsi_entry})"                                            #RSI_upper-->entry   # modified by ZXY  at 2024-02-14 10:50 
         )
         
         # 记录最终决策
-        _check_entry_long_conditions = cond1 and cond2 and cond3
-        if _check_entry_long_conditions:
+        self.long_conditions = self.long_cond1 and self.long_cond2 and self.long_cond3
+        if self.long_conditions:
             self.logger().info("所有条件满足，触发做多信号")
         else:
             self.logger().info("未触发做多信号，等待下一次机会")
             
-        return _check_entry_long_conditions
+        return self.long_conditions
 
     def _check_entry_short_conditions(self) -> bool:
         # 记录当前市场状态
@@ -788,38 +788,38 @@ class BbEmaRsi(StrategyV2Base):
         bb_threshold = (self.config.bb_middle * Decimal(str(self.bb_middle)) + self.config.bb_up * Decimal(str(self.bb_upper))) / Decimal('5')
         price_cond = (self.ema5 > bb_threshold) or (self.ema10 > bb_threshold)
         cross_cond = (self.prev_ema5 - self.prev_ema10 > 0) and (self.ema5 - self.ema10 < 0)                # XRH 计算减法要套括号吗？ 2025-02-14 12:20 # pass 同上
-        cond1 = price_cond and cross_cond
+        self.short_cond1 = price_cond and cross_cond
         
         # 条件2：（归一化）斜率判断       # XRH pass 2025-02-14 12:20
         # TODO XRH审计逻辑                         
         slope_threshold = Decimal(str(self.config.slope_entry)) / self.sigma_t if self.sigma_t else Decimal('0')           #这里不是exit， 这里的阈值和做多阈值一样  slope_enrty才是对的    # modified by ZXY  at 2024-02-14 10:53
-        cond2 = -self.delta_z > slope_threshold
+        self.short_cond2 = -self.delta_z > slope_threshold
         
         # 条件3：RSI过滤
         # TODO XRH审计逻辑
-        cond3 = self.rsi > (100 - self.config.rsi_entry)                # XRH 修改公式(100-config.rsi.enrty) 2025-02-14 12:20                                             #rsi_upper和lower本质是一个，用config.rsi_entey代替  # modified by ZXY  at 2024-02-14 10:53
+        self.short_cond3 = self.rsi > (100 - self.config.rsi_entry)                # XRH 修改公式(100-config.rsi.enrty) 2025-02-14 12:20                                             #rsi_upper和lower本质是一个，用config.rsi_entey代替  # modified by ZXY  at 2024-02-14 10:53
         
         # 记录每个条件的状态
         self.logger().info(
             f"做空条件检查 - "
-            f"EMA位置和死叉: {'[满足]' if cond1 else '[不满足]'} "                                # XRH 同理， 改成1/0为满足/不满足 2025-02-14 12:20 # 同上
+            f"EMA位置和死叉: {'[满足]' if self.short_cond1 else '[不满足]'} "                                # XRH 同理， 改成1/0为满足/不满足 2025-02-14 12:20 # 同上
             f"(位置: {'[满足]' if price_cond else '[不满足]'}, "
             f"死叉: {'[满足]' if cross_cond else '[不满足]'}), "
             
-            f"归一化斜率: {'[满足]' if cond2 else '[不满足]'} "                                           # modified by ZXY  at 2024-02-14 10:53
+            f"归一化斜率: {'[满足]' if self.short_cond2 else '[不满足]'} "                                           # modified by ZXY  at 2024-02-14 10:53
             f"(ΔZ={-self.delta_z:.2f}, 阈值={self.config.slope_entry/self.sigma_t:.2f}), "             # modified by ZXY  at 2024-02-14 10:53
-            f"RSI过滤: {'[满足]' if cond3 else '[不满足]'} "
+            f"RSI过滤: {'[满足]' if self.short_cond3 else '[不满足]'} "
             f"(RSI={self.rsi:.1f}, 阈值={self.config.rsi_entry})"                              ##RSI_lower-->entry                 02-13 19：29    # modified by ZXY  at 2024-02-14 10:53
         )
         
         # 记录最终决策
-        _check_entry_short_conditions = cond1 and cond2 and cond3
-        if _check_entry_short_conditions:
+        self.short_conditions = self.short_cond1 and self.short_cond2 and self.short_cond3
+        if self.short_conditions:
             self.logger().info("所有条件满足，触发做空信号")
         else:
             self.logger().info("未触发做空信号，等待下一次机会")
             
-        return _check_entry_short_conditions
+        return self.short_conditions
     
     def _get_spread(self) -> Decimal:
         """
@@ -1133,7 +1133,8 @@ class BbEmaRsi(StrategyV2Base):
         
         # 综合条件   
         cond_exit2_long = cond_exit2a_long or cond_exit2b_long
-        return cond_exit1_long and cond_exit2_long
+        self.exit_long = cond_exit1_long and cond_exit2_long
+        return self.exit_long
     
     def _check_exit_short_conditions(self) -> bool:
         """
@@ -1167,7 +1168,8 @@ class BbEmaRsi(StrategyV2Base):
         
         # 综合条件
         cond_exit2_short = cond_exit2a_short or cond_exit2b_short
-        return cond_exit1_short and cond_exit2_short
+        self.exit_short = cond_exit1_short and cond_exit2_short
+        return self.exit_short
     
     def _exit_actions_proposal(self) -> List[StopExecutorAction]:
         """
@@ -1229,71 +1231,97 @@ class BbEmaRsi(StrategyV2Base):
             "───────────────────────────────────────────────"
         ])
         
-        # 2. 技术指标状态
+        # 2.1 计算指标状态
         if all(v is not None for v in [self.bb_upper, self.bb_middle, self.bb_lower, self.ema5, self.ema10, self.rsi]):
             lines.extend([
-                "技术指标状态:",
-                f"布林带上轨: {self.bb_upper:.4f}",
-                f"布林带中轨: {self.bb_middle:.4f}",
-                f"布林带下轨: {self.bb_lower:.4f}",
-                f"EMA5: {self.ema5:.4f}",
-                f"EMA10: {self.ema10:.4f}",
-                f"RSI: {self.rsi:.2f}",
+                "计算指标状态:",
+                f"normslope:        {self.delta_z:.4f}",
+                f"mu:               {self.mu_t:.4f}",
+                f"sigma:            {self.sigma_t:.4f}",
+                    
+                f"EMA5:             {self.ema5:.4f}",
+                f"EMA10:            {self.ema10:.4f}",
+                
+                f"entryLong:        {self.long_conditions}",
+                f"entryCond1Long:   {self.long_cond1}",
+                f"entryCond2Long:   {self.long_cond2}",
+                f"entryCond3Long:   {self.long_cond3}",
+                
+                f"entryShort:       {self.short_conditions}",
+                f"entryCond1Short:  {self.short_cond1}",
+                f"entryCond2Short:  {self.short_cond2}",
+                f"entryCond3Short:  {self.short_cond3}",
+                
+                f"exitLong:         {self.exit_long}",
+                f"exitShort:        {self.exit_short}",
                 "───────────────────────────────────────────────"
             ])
+        
+        # # 2.2 技术指标状态
+        # if all(v is not None for v in [self.bb_upper, self.bb_middle, self.bb_lower, self.ema5, self.ema10, self.rsi]):
+        #     lines.extend([
+        #         "技术指标状态:",
+        #         f"布林带上轨: {self.bb_upper:.4f}",
+        #         f"布林带中轨: {self.bb_middle:.4f}",
+        #         f"布林带下轨: {self.bb_lower:.4f}",
+        #         f"EMA5: {self.ema5:.4f}",
+        #         f"EMA10: {self.ema10:.4f}",
+        #         f"RSI: {self.rsi:.2f}",
+        #         "───────────────────────────────────────────────"
+        #     ])
         
         # 3. 市场数据
-        if all(v is not None for v in [self.current_price, self.current_volume, self.current_volatility]):
-            lines.extend([
-                "市场数据:",
-                f"当前价格: {self.current_price:.4f}",
-                f"24h成交量: {self.current_volume:.2f}",
-                f"波动率: {self.current_volatility*100:.2f}%",
-                "───────────────────────────────────────────────"
-            ])
+        # if all(v is not None for v in [self.current_price, self.current_volume, self.current_volatility]):
+        #     lines.extend([
+        #         "市场数据:",
+        #         f"当前价格: {self.current_price:.4f}",
+        #         f"成交量: {self.current_volume:.2f}",
+        #         f"波动率: {self.current_volatility*100:.2f}%",
+        #         "───────────────────────────────────────────────"
+        #     ])
         
         # 4. 仓位信息
-        try:
-            connector = self.connectors[self.config.exchange]
-            base_asset, quote_asset = self.config.trading_pair.split('-')
-            base_balance = connector.get_available_balance(base_asset)
-            quote_balance = connector.get_available_balance(quote_asset)
-            position_value = self._calculate_position_value()
-            max_position = self._get_max_position_value()
+        # try:
+        #     connector = self.connectors[self.config.exchange]
+        #     base_asset, quote_asset = self.config.trading_pair.split('-')
+        #     base_balance = connector.get_available_balance(base_asset)
+        #     quote_balance = connector.get_available_balance(quote_asset)
+        #     position_value = self._calculate_position_value()
+        #     max_position = self._get_max_position_value()
             
-            lines.extend([
-                "仓位信息:",
-                f"基础货币({base_asset})余额: {base_balance:.4f}",
-                f"计价货币({quote_asset})余额: {quote_balance:.4f}",
-                f"当前持仓价值: {position_value:.4f} {quote_asset}",
-                f"最大持仓限制: {max_position:.4f} {quote_asset}",
-                f"仓位使用率: {(position_value/max_position*100 if max_position else 0):.2f}%",
-                "───────────────────────────────────────────────"
-            ])
-        except Exception as e:
-            lines.extend([
-                "仓位信息获取失败:",
-                f"错误: {str(e)}",
-                "───────────────────────────────────────────────"
-            ])
+        #     lines.extend([
+        #         "仓位信息:",
+        #         f"基础货币({base_asset})余额: {base_balance:.4f}",
+        #         f"计价货币({quote_asset})余额: {quote_balance:.4f}",
+        #         f"当前持仓价值: {position_value:.4f} {quote_asset}",
+        #         f"最大持仓限制: {max_position:.4f} {quote_asset}",
+        #         f"仓位使用率: {(position_value/max_position*100 if max_position else 0):.2f}%",
+        #         "───────────────────────────────────────────────"
+        #     ])
+        # except Exception as e:
+        #     lines.extend([
+        #         "仓位信息获取失败:",
+        #         f"错误: {str(e)}",
+        #         "───────────────────────────────────────────────"
+        #     ])
         
         # 5. 性能指标
-        if hasattr(self, 'metrics'):
-            lines.extend([
-                "策略性能:",
-                f"盈亏: {self.metrics.get('pnl', 0):.4f} {quote_asset}",
-                f"胜率: {(self.metrics.get('win_count', 0) / (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) * 100 if (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) > 0 else 0):.2f}%",
-                "───────────────────────────────────────────────"             # XRH 这里怎么获取的？ 2025-02-14 12:20 #此处后续优化 ZXY at 2024-02-14 14:30
-            ])
+        # if hasattr(self, 'metrics'):
+        #     lines.extend([
+        #         "策略性能:",
+        #         f"盈亏: {self.metrics.get('pnl', 0):.4f} {quote_asset}",
+        #         f"胜率: {(self.metrics.get('win_count', 0) / (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) * 100 if (self.metrics.get('win_count', 0) + self.metrics.get('loss_count', 0)) > 0 else 0):.2f}%",
+        #         "───────────────────────────────────────────────"             # XRH 这里怎么获取的？ 2025-02-14 12:20 #此处后续优化 ZXY at 2024-02-14 14:30
+        #     ])
         
         # 6. 风险指标
-        lines.extend([
-            "风险控制:",
-            f"杠杆倍数: {self.config.leverage}x",
-            f"止损设置: {self.config.stop_loss*100:.2f}%",                    #  XRH 为什么是*100  2025-02-14 12:20 # 将小数转换为百分比，如 0.05 -> 5% by ZXY at 2025-02-14 14:30
-            f"止盈设置: {self.config.take_profit*100:.2f}%",
-            f"持仓时间限制: {self.config.time_limit/3600:.1f}小时",            #  XRH 为什么是/3600  2025-02-14 12:20 # 将秒转换为小时，3600秒=1小时 by ZXY at 2025-02-14 14:30
-            "═══════════════════════════════════════════════"
-        ])
+        # lines.extend([
+        #     "风险控制:",
+        #     f"杠杆倍数: {self.config.leverage}x",
+        #     f"止损设置: {self.config.stop_loss*100:.2f}%",                    #  XRH 为什么是*100  2025-02-14 12:20 # 将小数转换为百分比，如 0.05 -> 5% by ZXY at 2025-02-14 14:30
+        #     f"止盈设置: {self.config.take_profit*100:.2f}%",
+        #     f"持仓时间限制: {self.config.time_limit/3600:.1f}小时",            #  XRH 为什么是/3600  2025-02-14 12:20 # 将秒转换为小时，3600秒=1小时 by ZXY at 2025-02-14 14:30
+        #     "═══════════════════════════════════════════════"
+        # ])
         
         return "\n".join(lines)
