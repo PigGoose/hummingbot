@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import pandas_ta as ta  # noqa: F401
-from pydantic import Field, validator                                                   # XRH 这里划了横线，不用管吗？ 2025-02-14 12:20  # 不用管，是pydantic版本问题，新的版本这个装饰器不用了，但是hummingbotdocker里还是这个版本  remark by ZXY at 2025-02-14 14:30
+from pydantic import Field, validator
 
 from hummingbot.client.config.config_data_types import ClientFieldData
 from hummingbot.connector.connector_base import ConnectorBase
@@ -14,16 +14,15 @@ from hummingbot.data_feed.candles_feed.candles_factory import CandlesConfig
 from hummingbot.strategy.strategy_v2_base import StrategyV2Base, StrategyV2ConfigBase
 from hummingbot.strategy_v2.executors.position_executor.data_types import PositionExecutorConfig, TripleBarrierConfig
 from hummingbot.strategy_v2.models.executor_actions import CreateExecutorAction, StopExecutorAction, StopExecutorAction
-from hummingbot.strategy_v2.models.executors_info import ExecutorInfo
 
-class BbMaRsiConfig(StrategyV2ConfigBase):
+class BbEmaRsiConfig(StrategyV2ConfigBase):
     """
-    布林带和移动平均线策略的配置类
-    Configuration class for Bollinger Bands and Moving Average strategy
+    布林带和EMA策略的配置类
+    Configuration class for Bollinger Bands and EMA strategy
     
     策略参数配置包括：
-    1. 技术指标参数:布林带周期、标准差倍数、MA周期
-    2. 风险控制参数:最大持仓、最小成交量、最大波动率
+    1. 技术指标参数:布林带周期、标准差倍数、EMA5周期、EMA10周期
+    2. 风险控制参数:最大持仓、订单量、最小成交量
     3. 市场数据参数:最小数据点、K线配置
     4. 交易执行参数:交易对、订单大小、价差等
     5. 仓位管理参数:止损、止盈、持仓时间限制
@@ -40,7 +39,7 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
     # ======= 交易所和交易对配置 =======
     # 交易所设置，默认使用binance模拟交易账户
     # 可选值包括：binance, binance_paper_trade等
-    exchange: str = Field(default="okx_perpetual", client_data=ClientFieldData(
+    exchange: str = Field(default="binance", client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "机器人将在哪个交易所进行交易"))
     
     # 交易对设置，格式为 BASE-QUOTE，如 BTC-USDT
@@ -242,7 +241,7 @@ class BbMaRsiConfig(StrategyV2ConfigBase):
             time_limit_order_type=OrderType.MARKET   # 时间限制平仓使用市价单
         )
 
-class BbMaRsi(StrategyV2Base):
+class BbEmaRsi(StrategyV2Base):
      
     """
     布林带和移动平均线策略的实现类
@@ -273,23 +272,23 @@ class BbMaRsi(StrategyV2Base):
     account_config_set = False
     
     @classmethod
-    def init_markets(cls, config: BbMaRsiConfig):
+    def init_markets(cls, config: BbEmaRsiConfig):
         """
         初始化交易市场
         
         Args:
-            config (BbMaRsiConfig): 策略配置对象
+            config (BbEmaRsiConfig): 策略配置对象
         """
         # 设置交易市场为配置中指定的交易所和交易对
         cls.markets = {config.exchange: {config.trading_pair}}
     
-    def __init__(self, connectors: Dict[str, ConnectorBase], config: BbMaRsiConfig):
+    def __init__(self, connectors: Dict[str, ConnectorBase], config: BbEmaRsiConfig):
         """
         初始化策略实例
         
         Args:
             connectors (Dict[str, ConnectorBase]): 交易所连接器字典
-            config (BbMaRsiConfig): 策略配置对象
+            config (BbEmaRsiConfig): 策略配置对象
         """
         self.logger().info(f"初始化布林带MA策略 - 交易对: {config.trading_pair}, 交易所: {config.exchange}")
         self.logger().info(f"策略参数 - BB周期: {config.bb_length}, BB标准差: {config.bb_std}, EMA5周期: {config.ema5_length}, EMA10周期: {config.ema10_length}")
@@ -669,13 +668,9 @@ class BbMaRsi(StrategyV2Base):
             "position_value": float(position_value)  # 持仓价值
         })
         
-        self.logger().info(f"当前指标 - 价格: {self.metrics['current_price']}, 
-                           BB上轨: {self.metrics['bb_upper']}, BB下轨: {self.metrics['bb_lower']},
-                           EMA5: {self.metrics['ema5']}, EMA10: {self.metrics['ema10']}, RSI: {self.metrics['rsi']}")
-        self.logger().info(f"市场数据 - 成交量: {self.metrics['current_volume']}, 
-                           波动率: {self.metrics['current_volatility']}, 
-                           持仓价值: {self.metrics['position_value']}")
-    
+        self.logger().info(f"当前指标 - 价格: {self.metrics['current_price']}, BB上轨: {self.metrics['bb_upper']}, BB下轨: {self.metrics['bb_lower']}, EMA5: {self.metrics['ema5']}, EMA10: {self.metrics['ema10']}, RSI: {self.metrics['rsi']}")
+        self.logger().info(f"市场数据 - 成交量: {self.metrics['current_volume']}, 波动率: {self.metrics['current_volatility']}, 持仓价值: {self.metrics['position_value']}")
+
     def _entry_actions_proposal(self) -> List[CreateExecutorAction]:
         """
         创建交易动作建议
