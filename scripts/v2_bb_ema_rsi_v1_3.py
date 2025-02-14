@@ -832,12 +832,13 @@ class BbEmaRsi(StrategyV2Base):
         Returns:
             Decimal: 计算得到的价差百分比
         """
-        return max(
-            self.config.min_order_spread,  # 最小价差要求（0.01%）
+        return self.config.min_order_spread  # 最小价差要求（0.01%）
+        # return max(
+        #     self.config.min_order_spread,  # 最小价差要求（0.01%）
             # TODO ZXY审查逻辑
             # ZXY 目前阶段不用考虑这两个参数，这两个参数是为了根据市场实时计算价差 at 2024-02-14 12:05
             # (self.config.bid_price_offset + self.config.ask_price_offset) / Decimal("2")  # 买卖价差的平均值  
-        )
+        # )
         
     def _check_market_ready(self) -> bool:
         """
@@ -962,20 +963,18 @@ class BbEmaRsi(StrategyV2Base):
         
         # 2. 计算做多价格 = 下一根 K 线开盘价下跌买入价差，考虑滑点
         spread = self._get_spread()
-        buy_price = current_open_price * (1 - spread)
+        entry_price = current_open_price * (1 - spread)
         
         # 3. 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
-            timestamp=self.market_data_provider.time(),              # 当前时间戳
-            trading_pair=self.config.trading_pair,                   # 交易对
-            exchange=self.config.exchange,                           # 交易所
-            side=TradeType.BUY,                                      # 买入方向
-            entry_price=buy_price,                                   # 买入价格
-            amount=self.config.order_amount,                         # 买入数量
-            position_mode=self.config.position_mode,                 # 仓位模式
-            leverage=self.config.leverage,                           # 杠杆倍数
-            entry_order_type=OrderType.LIMIT,                        # 限价单
-            triple_barrier_conf=self.config.triple_barrier_config()  # 三重障碍配置
+            timestamp=self.market_data_provider.time(),               # 当前时间戳
+            connector_name=self.config.exchange,                      # 交易所
+            trading_pair=self.config.trading_pair,                    # 交易对
+            side=TradeType.BUY,                                       # 买入方向
+            entry_price=entry_price,                                  # 买入价格
+            amount=self.config.order_amount,                          # 买入数量
+            leverage=self.config.leverage,                            # 杠杆倍数
+            triple_barrier_conf=self.config.triple_barrier_config     # 三重障碍配置
         )
         
         # 4. 创建执行动作
@@ -986,7 +985,7 @@ class BbEmaRsi(StrategyV2Base):
         # 5. 记录日志
         self.logger().info(
             f"创建做多订单 - 交易对: {self.config.trading_pair}, "
-            f"价格: {buy_price}, 数量: {self.config.order_amount}, "
+            f"价格: {entry_price}, 数量: {self.config.order_amount}, "
             f"止损: {self.config.stop_loss}, 止盈: {self.config.take_profit}, "
             f"时间限制: {self.config.time_limit}秒"
         )
@@ -1011,20 +1010,18 @@ class BbEmaRsi(StrategyV2Base):
         
         # 计算做空卖出价格 = 下一根 K 线开盘价上涨卖出价差，考虑滑点
         spread = self._get_spread()
-        sell_price = current_open_price * (1 + spread)
+        entry_price = current_open_price * (1 + spread)
         
         # 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
-            timestamp=self.market_data_provider.time(),              # 当前时间戳
-            trading_pair=self.config.trading_pair,                   # 交易对
-            exchange=self.config.exchange,                           # 交易所
-            side=TradeType.SELL,                                     # 卖出方向
-            entry_price=sell_price,                                  # 卖出价格
-            amount=self.config.order_amount,                         # 卖出数量
-            position_mode=self.config.position_mode,                 # 仓位模式
-            leverage=self.config.leverage,                           # 杠杆倍数
-            entry_order_type=OrderType.LIMIT,                        # 限价单
-            triple_barrier_conf=self.config.triple_barrier_config()  # 三重障碍配置
+            timestamp=self.market_data_provider.time(),               # 当前时间戳
+            connector_name=self.config.exchange,                      # 交易所
+            trading_pair=self.config.trading_pair,                    # 交易对
+            side=TradeType.SELL,                                      # 卖出方向
+            entry_price=entry_price,                                  # 卖出价格
+            amount=self.config.order_amount,                          # 卖出数量
+            leverage=self.config.leverage,                            # 杠杆倍数
+            triple_barrier_conf=self.config.triple_barrier_config     # 三重障碍配置
         )
         
         # 创建执行动作
@@ -1034,7 +1031,7 @@ class BbEmaRsi(StrategyV2Base):
         
         self.logger().info(
             f"创建做空订单 - 交易对: {self.config.trading_pair}, "
-            f"价格: {sell_price}, 数量: {self.config.order_amount}, "
+            f"价格: {entry_price}, 数量: {self.config.order_amount}, "
             f"止损: {self.config.stop_loss}, 止盈: {self.config.take_profit}, "
             f"时间限制: {self.config.time_limit}秒"
         )
@@ -1064,18 +1061,28 @@ class BbEmaRsi(StrategyV2Base):
             # 平空仓，在当前价格基础上加上价差，确保能成交
             close_price = current_open_price * (1 + spread)
         
-        # 创建仓位执行器配置
-        executor_config = PositionExecutorConfig(
-            exchange=self.config.exchange,
-            trading_pair=self.config.trading_pair,
-            side=position_side,  # 平仓方向与持仓方向相反
-            amount=self.config.order_amount,
-            take_profit=None,  # 平仓不需要设置止盈
-            stop_loss=None,    # 平仓不需要设置止损
-            time_limit=self.config.time_limit,
-            entry_price=close_price,
-            mode=self.config.position_mode
+        # 创建一个特殊的三重障碍配置用于平仓
+        close_barrier_config = TripleBarrierConfig(
+            stop_loss=Decimal("0.1"),                   # 设置一个较大的止损以防止触发
+            take_profit=Decimal("0.1"),                 # 设置一个较大的止盈以防止触发
+            time_limit=self.config.time_limit,          # 保持原有的时间限制
+            open_order_type=OrderType.LIMIT,            # 开仓使用限价单
+            take_profit_order_type=OrderType.LIMIT,     # 止盈使用限价单
+            stop_loss_order_type=OrderType.LIMIT,       # 止损使用限价单
+            time_limit_order_type=OrderType.LIMIT       # 时间限制平仓使用限价单
         )
+        
+        executor_config = PositionExecutorConfig(
+            timestamp=self.market_data_provider.time(),               # 当前时间戳
+            connector_name=self.config.exchange,                      # 交易所
+            trading_pair=self.config.trading_pair,                    # 交易对
+            side=position_side,                                       # 平仓方向与持仓方向相反
+            entry_price=close_price,                                  # 平仓价格
+            amount=self.config.order_amount,                          # 平仓数量
+            leverage=self.config.leverage,                            # 杠杆倍数
+            triple_barrier_conf=close_barrier_config                  # 平仓的三重障碍配置
+        )
+        
         
         # 创建执行器动作
         return CreateExecutorAction(
@@ -1232,7 +1239,10 @@ class BbEmaRsi(StrategyV2Base):
         ])
         
         # 2.1 计算指标状态
-        if all(v is not None for v in [self.bb_upper, self.bb_middle, self.bb_lower, self.ema5, self.ema10, self.rsi]):
+        if all(v is not None for v in [self.delta_z, self.mu_t, self.sigma_t, self.ema5, self.ema10, 
+                                       self.long_conditions, self.short_conditions, 
+                                       self.long_cond1, self.long_cond2, self.long_cond3, 
+                                       self.short_cond1, self.short_cond2, self.short_cond3]):
             lines.extend([
                 "计算指标状态:",
                 f"normslope:        {self.delta_z:.4f}",
@@ -1252,8 +1262,8 @@ class BbEmaRsi(StrategyV2Base):
                 f"entryCond2Short:  {self.short_cond2}",
                 f"entryCond3Short:  {self.short_cond3}",
                 
-                f"exitLong:         {self.exit_long}",
-                f"exitShort:        {self.exit_short}",
+                # f"exitLong:         {self.exit_long}",
+                # f"exitShort:        {self.exit_short}",
                 "───────────────────────────────────────────────"
             ])
         
