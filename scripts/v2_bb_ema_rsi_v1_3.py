@@ -34,12 +34,12 @@ class BbEmaRsiConfig(StrategyV2ConfigBase):
     # K线数据配置列表，定义了获取哪些周期的K线数据
     candles_config: List[CandlesConfig] = Field(default=[], client_data=None)
     # 控制器配置列表，定义了哪些控制器将被使用
-    controllers_config: List[str] = []
+    controllers_config: List[str] = Field(default=["main"], client_data=None)
     
     # ======= 交易所和交易对配置 =======
     # 交易所设置，默认使用binance模拟交易账户
     # 可选值包括：binance, binance_paper_trade等
-    exchange: str = Field(default="binance", client_data=ClientFieldData(
+    connector_name: str = Field(default="okx_perpetual", client_data=ClientFieldData(
         prompt_on_new=True, prompt=lambda mi: "机器人将在哪个交易所进行交易"))
     
     # 交易对设置，格式为 BASE-QUOTE，如 BTC-USDT
@@ -280,7 +280,7 @@ class BbEmaRsi(StrategyV2Base):
             config (BbEmaRsiConfig): 策略配置对象
         """
         # 设置交易市场为配置中指定的交易所和交易对
-        cls.markets = {config.exchange: {config.trading_pair}}
+        cls.markets = {config.connector_name: {config.trading_pair}}
     
     def __init__(self, connectors: Dict[str, ConnectorBase], config: BbEmaRsiConfig):
         """
@@ -290,14 +290,21 @@ class BbEmaRsi(StrategyV2Base):
             connectors (Dict[str, ConnectorBase]): 交易所连接器字典
             config (BbEmaRsiConfig): 策略配置对象
         """
-        self.logger().info(f"初始化布林带MA策略 - 交易对: {config.trading_pair}, 交易所: {config.exchange}")
+        # 初始化交易市场
+        self.init_markets(config)
+        
+        # 确保控制器配置包含"main"
+        if "main" not in config.controllers_config:
+            config.controllers_config.append("main")
+            
+        self.logger().info(f"初始化布林带MA策略 - 交易对: {config.trading_pair}, 交易所: {config.connector_name}")
         self.logger().info(f"策略参数 - BB周期: {config.bb_length}, BB标准差: {config.bb_std}, EMA5周期: {config.ema5_length}, EMA10周期: {config.ema10_length}")
         self.logger().info(f"交易参数 - 最大持仓: {config.max_position_size}, 订单量: {config.order_amount}, 最小成交量: {config.min_volume_threshold}")
         self.logger().info(f"风控参数 - 止损: {config.stop_loss}, 止盈: {config.take_profit}, 持仓时限: {config.time_limit}秒")
         # 如果没有K线配置，添加默认的1分钟K线配置
         if len(config.candles_config) == 0:
             config.candles_config.append(CandlesConfig(
-                connector=config.exchange,
+                connector=config.connector_name,
                 trading_pair=config.trading_pair,
                 interval=config.candles_interval,  # 1分钟K线
                 max_records=config.min_data_points  # 最大记录数
@@ -498,7 +505,7 @@ class BbEmaRsi(StrategyV2Base):
         
         # 获取当前价格（根据配置的价格类型）
         self.current_price = Decimal(str(self.market_data_provider.get_price_by_type(
-            self.config.exchange,
+            self.config.connector_name,
             self.config.trading_pair,
             self._get_price_type())))
             
@@ -577,7 +584,7 @@ class BbEmaRsi(StrategyV2Base):
             pd.DataFrame: 满足要求的K线数据，如果数据点数不足则返回None
         """
         candles_df = self.market_data_provider.get_candles_df(
-            self.config.exchange,
+            self.config.connector_name,
             self.config.trading_pair,
             self.config.candles_interval
         )
@@ -913,7 +920,7 @@ class BbEmaRsi(StrategyV2Base):
             Decimal: 当前持仓的价值（以计价货币计价）
         """
         # 获取交易所连接器
-        connector = self.connectors[self.config.exchange]
+        connector = self.connectors[self.config.connector_name]
         # 获取基础资产余额（如BTC-USDT中的BTC）
         #TODO 查看验证get_available_balance  #ZXY已经验证，用法正确 at 2024-02-14 11:47
         base_balance = connector.get_available_balance(self.config.trading_pair.split('-')[0])
@@ -932,7 +939,7 @@ class BbEmaRsi(StrategyV2Base):
             Decimal: 最大允许的持仓价值
         """
         # 获取交易所连接器
-        connector = self.connectors[self.config.exchange]
+        connector = self.connectors[self.config.connector_name]
         
         # 获取计价货币余额（如BTC-USDT中的USDT）
         quote_balance = connector.get_available_balance(self.config.trading_pair.split('-')[1])
@@ -968,7 +975,7 @@ class BbEmaRsi(StrategyV2Base):
         # 3. 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
             timestamp=self.market_data_provider.time(),               # 当前时间戳
-            connector_name=self.config.exchange,                      # 交易所
+            connector_name=self.config.connector_name,                      # 交易所
             trading_pair=self.config.trading_pair,                    # 交易对
             side=TradeType.BUY,                                       # 买入方向
             entry_price=entry_price,                                  # 买入价格
@@ -1015,7 +1022,7 @@ class BbEmaRsi(StrategyV2Base):
         # 创建仓位执行器配置
         executor_config = PositionExecutorConfig(
             timestamp=self.market_data_provider.time(),               # 当前时间戳
-            connector_name=self.config.exchange,                      # 交易所
+            connector_name=self.config.connector_name,                      # 交易所
             trading_pair=self.config.trading_pair,                    # 交易对
             side=TradeType.SELL,                                      # 卖出方向
             entry_price=entry_price,                                  # 卖出价格
@@ -1074,7 +1081,7 @@ class BbEmaRsi(StrategyV2Base):
         
         executor_config = PositionExecutorConfig(
             timestamp=self.market_data_provider.time(),               # 当前时间戳
-            connector_name=self.config.exchange,                      # 交易所
+            connector_name=self.config.connector_name,                      # 交易所
             trading_pair=self.config.trading_pair,                    # 交易对
             side=position_side,                                       # 平仓方向与持仓方向相反
             entry_price=close_price,                                  # 平仓价格
@@ -1233,7 +1240,7 @@ class BbEmaRsi(StrategyV2Base):
         # 1. 基本信息
         lines.extend([
             "\n═══════════════ 布林带MA策略状态 ═══════════════",
-            f"交易对: {self.config.exchange}:{self.config.trading_pair}",
+            f"交易对: {self.config.connector_name}:{self.config.trading_pair}",
             f"策略状态: {'就绪' if self.ready else '未就绪'}",
             "───────────────────────────────────────────────"
         ])
@@ -1292,7 +1299,7 @@ class BbEmaRsi(StrategyV2Base):
         
         # 4. 仓位信息
         # try:
-        #     connector = self.connectors[self.config.exchange]
+        #     connector = self.connectors[self.config.connector_name]
         #     base_asset, quote_asset = self.config.trading_pair.split('-')
         #     base_balance = connector.get_available_balance(base_asset)
         #     quote_balance = connector.get_available_balance(quote_asset)
